@@ -6,7 +6,12 @@ import torch.nn as nn
 import os
 import sys
 import appdirs
-from collections import defaultdict, Sequence, namedtuple
+#报错，无法从collections 中引入Sequence,改为从collections.abc中引入
+#from collections import defaultdict, Sequence, namedtuple
+
+from collections.abc import  Sequence
+from collections import defaultdict, namedtuple
+
 from functools import reduce
 import operator
 import math

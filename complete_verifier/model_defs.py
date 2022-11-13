@@ -12,7 +12,7 @@
 ##                                                                     ##
 #########################################################################
 import torch
-from torch.nn import functional as F
+from torch.nn import functional as F #泛函数functinonal
 import torch.nn as nn
 from collections import OrderedDict
 import math
@@ -21,6 +21,7 @@ from functools import partial
 
 ########################################
 # Defined the model architectures
+# 定义基本的模型
 ########################################
 
 class Flatten(nn.Module):
