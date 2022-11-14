@@ -30,6 +30,23 @@ DFS_enabled = False
 
 
 def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_bound=True, adv_pool=None):
+    """_summary_
+
+    Args:
+        d (_type_): _description_
+        net (_type_): _description_
+        batch (_type_): _description_
+        pre_relu_indices (_type_): _description_
+        growth_rate (_type_): _description_
+        layer_set_bound (bool, optional): _description_. Defaults to True.
+        adv_pool (_type_, optional): _description_. Defaults to None.
+
+    Raises:
+        NotImplementedError: _description_
+
+    Returns:
+        _type_: _description_
+    """    
     global Visited, Flag_first_split
     global Use_optimized_split
     global DFS_enabled
@@ -49,7 +66,7 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
 
     domains_params = pick_out_batch(d, decision_thresh, batch=batch * (1 - dive_rate), device=net.x.device, DFS_percent=DFS_percent if DFS_enabled else 0)
     mask, lAs, orig_lbs, orig_ubs, slopes, betas, intermediate_betas, selected_domains = domains_params
-
+    #mask 指标了当前激活态是否是unfixedd/是否是ambiguous的，0：fixed,1:ambiguous
     pickout_time = time.time() - pickout_time
 
     if mask is not None:
@@ -70,7 +87,7 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
             branching_decision = choose_node_parallel_kFSB(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                             branching_candidates=branching_candidates, branching_reduceop=branching_reduceop,
                                             slopes=slopes, betas=betas, history=history)
-        else:
+        else:#"sb"未实现
             raise NotImplementedError
 
         if len(branching_decision) < len(mask[0]):

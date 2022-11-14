@@ -509,7 +509,7 @@ def load_eran_dataset(eps_temp=None):
         runnerup = torch.from_numpy(runnerup.astype(int))
         if eps_temp is None: eps_temp = 0.3
 
-        eps_temp = torch.tensor(eps_temp).reshape(1, -1, 1, 1)
+        eps_temp = torch.tensor(eps_temp.item()).reshape(1, -1, 1, 1)
         data_max = torch.tensor(1.).reshape(1, -1, 1, 1)
         data_min = torch.tensor(0.).reshape(1, -1, 1, 1)
 
@@ -531,7 +531,8 @@ def load_eran_dataset(eps_temp=None):
         runnerup = torch.from_numpy(runnerup.astype(int))
         if eps_temp is None: eps_temp = 0.3
 
-        eps_temp = torch.tensor(eps_temp).reshape(1, -1, 1, 1)
+        #eps_temp = torch.tensor(eps_temp).reshape(1, -1, 1, 1)
+        eps_temp = torch.tensor(eps_temp.item()).reshape(1, -1, 1, 1)
         data_max = torch.tensor(1.).reshape(1, -1, 1, 1)
         data_min = torch.tensor(0.).reshape(1, -1, 1, 1)
 

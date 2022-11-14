@@ -114,7 +114,9 @@ class ConfigHandler:
         self.add_argument("--DFS_percent", type=float, default=0., help='Percent of domains for depth first search (not used).', hierarchy=h + ["dfs_percent"])
 
         h = ["bab", "branching"]
-        self.add_argument("--branching_method", default="kfsb", choices=["babsr", "fsb", "kfsb", "sb"], help='Branching heuristic. babsr is fast but less accurate; fsb is slow but most accurate; kfsb is usualy a balance.', hierarchy=h + ["method"])
+        #sb: smart branching
+        self.add_argument("--branching_method", default="kfsb", choices=["babsr", "fsb", "kfsb", "sb"],
+         help='Branching heuristic. babsr is fast but less accurate; fsb is slow but most accurate; kfsb is usualy a balance.', hierarchy=h + ["method"])
         self.add_argument("--branching_candidates", type=int, default=3, help='Number of candidates to consider when using fsb or kfsb. More leads to slower but better branching.', hierarchy=h + ["candidates"])
         self.add_argument("--branching_reduceop", choices=["min", "max", "mean", "auto"], default="min", help='Reduction operation to compute branching scores from two sides of a branch (min or max). max can work better on some models.', hierarchy=h + ["reduceop"])
 
@@ -122,6 +124,7 @@ class ConfigHandler:
         self.add_argument('--pgd_order', choices=["before", "after", "skip"], default="before",  help='Run PGD before/after incomplete verification, or skip it.', hierarchy=h + ["pgd_order"])
 
     def add_argument(self, *args, **kwargs):
+
         """Add a single parameter to the parser. We will check the 'hierarchy' specified and then pass the remaining arguments to argparse."""
         if 'hierarchy' not in kwargs:
             raise ValueError("please specify the 'hierarchy' parameter when using this function.")
@@ -252,7 +255,11 @@ class ConfigHandler:
         return self.all_args.items()
 
     def __getitem__(self, key):
-        """Read an item from the dictionary of parameters."""
+        """Read an item from the dictionary of parameters.
+            当使用A[key]方式调用时，会调用该函数
+            For instance, if a class defines a method named __getitem__(), 
+            and x is an instance of this class, then x[i] is roughly equivalent to type(x).__getitem__(x, i). 
+        """
         return self.all_args[key]
 
     def __setitem__(self, key, value):

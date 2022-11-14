@@ -533,8 +533,8 @@ class LiRPAConvNet:
                 # for each layer except the last output layer
                 if len(zero_indices_batch[d]):
                     # we set lower = 0 in first half batch, and upper = 0 in second half batch
-                    lower_bounds[d][:2 * batch].view(2 * batch, -1)[zero_indices_batch[d], zero_indices_neuron[d]] = 0.0
-                    upper_bounds[d][:2 * batch].view(2 * batch, -1)[zero_indices_batch[d] + batch, zero_indices_neuron[d]] = 0.0
+                    lower_bounds[d][:2 * batch].view(2 * batch, -1)[zero_indices_batch[d], zero_indices_neuron[d].type(torch.long)] = 0.0
+                    upper_bounds[d][:2 * batch].view(2 * batch, -1)[zero_indices_batch[d] + batch, zero_indices_neuron[d].type(torch.long)] = 0.0
                 new_candidate[self.name_dict[d]] = [lower_bounds[d], upper_bounds[d]]
 
         # create new_x here since batch may change

@@ -397,6 +397,15 @@ def select_batch(domains, batch):
 
 def pick_out_batch(domains, threshold, batch, device='cuda', DFS_percent=0, diving=False):
     """
+
+    domains: 
+    threshold:
+    batch:
+    DFS_percent:
+    diving:
+
+
+
     Pick the first batch of domains in the `domains` sequence
     that has a lower bound lower than `threshold`.
 

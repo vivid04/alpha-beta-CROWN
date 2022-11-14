@@ -173,6 +173,23 @@ def choose_node_conv(lower_bounds, upper_bounds, orig_mask, layers, pre_relu_ind
 @torch.no_grad()
 def choose_node_parallel_crown(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
                                decision_threshold=0.001, batch=5, branching_reduceop='min'):
+    """BaBSR branching stratety
+
+    Args:
+        lower_bounds (_type_): _description_
+        upper_bounds (_type_): _description_
+        orig_mask (_type_): _description_
+        net (_type_): _description_
+        pre_relu_indices (_type_): _description_
+        lAs (_type_): _description_
+        sparsest_layer (int, optional): _description_. Defaults to 0.
+        decision_threshold (float, optional): _description_. Defaults to 0.001.
+        batch (int, optional): _description_. Defaults to 5.
+        branching_reduceop (str, optional): _description_. Defaults to 'min'.
+
+    Returns:
+        _type_: _description_
+    """                               
     batch = min(batch, len(orig_mask[0]))
     # Mask is 1 for unstable neurons. Otherwise it's 0.
     mask = orig_mask

@@ -27,6 +27,31 @@
              "args": [
               "--config",
               "exp_configs/cifar_resnet_2b.yaml"]
+        },
+        {
+            "name": "Python: mnist_6_100_crown",
+            "type": "python",
+            "request": "launch",
+            "program": "robustness_verifier.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/complete_verifier",
+             "args": [
+              "--config",
+              "exp_configs/mnist_6_100_basic.yaml"]
+        }
+        ,
+        {
+            "name": "Python: mnist_6_100_bab_sb",
+            "type": "python",
+            "request": "launch",
+            "program": "robustness_verifier.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/complete_verifier",
+             "args": [
+              "--config",
+              "exp_configs/mnist_6_100_bab_sb.yaml"]
         }
     ]
 }

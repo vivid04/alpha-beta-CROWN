@@ -23,8 +23,15 @@ from functools import partial
 # Defined the model architectures
 # 定义基本的模型
 ########################################
-
 class Flatten(nn.Module):
+    """_summary_
+    将多维的数组变成二维数组,行数不变
+    比如 
+        rand(3,4,5)->tensor(3,20)
+
+    Args:
+        nn (_type_): _description_
+    """
     def forward(self, x):
         return x.reshape(x.size(0), -1)
 
@@ -33,13 +40,25 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, bn=True, kernel=3):
+        """_summary_
+
+        Args:
+            in_planes (_type_): 输入的通道数Number of channels in the input image
+            planes (_type_): 输出的通道数Number of channels produced by the convolution
+            stride (int, optional): 步幅（Stride of the convolution. Default: 1）
+            bn (bool, optional): 指示是否使用batchnorm2d. Defaults to True.
+            kernel (int, optional): 卷积核. Defaults to 3.
+        """        
         super(BasicBlock, self).__init__()
         self.bn = bn
         if kernel == 3:
             # can only do planes 16, block1
+            #二维卷积层，in_planes为输入通道数，planes为输出通道数,
+            # bias,指示是否使用一个偏置项，当不使用batchnorm时，为True
             self.conv1 = nn.Conv2d(
                 in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=(not self.bn))
-            if self.bn:
+            #当bn=ture时，增加一个batchnorm网络
+            if self.bn: 
                 self.bn1 = nn.BatchNorm2d(planes)
             self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
                                    stride=1, padding=1, bias=(not self.bn))
@@ -74,12 +93,14 @@ class BasicBlock(nn.Module):
                     nn.BatchNorm2d(self.expansion*planes)
                 )
             else:
+                #resnet的快速连接，使用了卷积网络
                 self.shortcut = nn.Sequential(
                     nn.Conv2d(in_planes, self.expansion*planes,
                               kernel_size=1, stride=stride, bias=(not self.bn)),
                 )
 
     def forward(self, x):
+        #当bn=true时，先conv->batchnorm->relu->conv2->batchnorm2
         if self.bn:
             out = F.relu(self.bn1(self.conv1(x)))
             # print("residual relu:", out.shape, out[0].view(-1).shape)
