@@ -108,10 +108,13 @@ def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size
             data_ub = data_max[start_idx:end_idx]
             data_lb = data_min[start_idx:end_idx]
         data, data_lb, data_ub, labels = data.cuda(), data_lb.cuda(), data_ub.cuda(), labels.cuda()
+
         ptb = PerturbationLpNorm(norm=norm, eps=None, x_L=data_lb, x_U=data_ub)
         data = BoundedTensor(data, ptb)
         # labels = torch.argmax(pred, dim=1).cpu().detach().numpy()
-        c = torch.eye(num_outputs).type_as(data)[labels].unsqueeze(1) - torch.eye(num_outputs).type_as(data).unsqueeze(0)
+        #unsequeeze Returns a new tensor with a dimension of size one inserted at the specified position.
+        #将tensolr在指定位置上为一维的
+        c = torch.eye(num_outputs).type_as(data)[labels.type(torch.long)].unsqueeze(1) - torch.eye(num_outputs).type_as(data).unsqueeze(0)
         I = (~(labels.data.unsqueeze(1) == torch.arange(num_outputs).type_as(labels.data).unsqueeze(0)))
         c = (c[I].view(data.size(0), num_outputs - 1, num_outputs)).cuda()
         if method == "CROWN" or method == "IBP":
@@ -135,8 +138,17 @@ def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size
 
 
 def main():
+    """robustness_verifer 主函数
+
+    Raises:
+        ValueError: _description_
+        ValueError: _description_
+        ValueError: _description_
+        ValueError: _description_
+        ValueError: _description_
+    """    
     print(f'Experiments at {time.ctime()} on {socket.gethostname()}')
-    torch.manual_seed(arguments.Config["general"]["seed"])
+    torch.manual_seed(arguments.Config["general"]["seed"])#设置随机的种子，包括torch, numpy, python
     random.seed(arguments.Config["general"]["seed"])
     np.random.seed(arguments.Config["general"]["seed"])
     if arguments.Config["general"]["device"] != 'cpu':
@@ -213,6 +225,7 @@ def main():
                arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"])
     print(f'saving results to {save_path}')
 
+    #选择模式
     if arguments.Config["general"]["mode"] == "crown-only-verified-acc":
         get_statistics(model_ori, X, labels, perturb_epsilon, data_min, data_max, batch_size=arguments.Config["solver"]["beta-crown"]["batch_size"])
         return
