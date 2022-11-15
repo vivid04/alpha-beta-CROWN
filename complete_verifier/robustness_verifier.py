@@ -151,6 +151,7 @@ def main():
     torch.manual_seed(arguments.Config["general"]["seed"])#设置随机的种子，包括torch, numpy, python
     random.seed(arguments.Config["general"]["seed"])
     np.random.seed(arguments.Config["general"]["seed"])
+    #
     if arguments.Config["general"]["device"] != 'cpu':
         torch.cuda.manual_seed_all(arguments.Config["general"]["seed"])
         # Always disable TF32 (precision is too low for verification).
@@ -165,12 +166,14 @@ def main():
         torch.set_default_dtype(torch.float64)
 
     if arguments.Config["attack"]["pgd_order"] != "skip":
+        #仅直接lp, inf形式的norm,如果是其他形式的，则不执行attack
         if arguments.Config["specification"]["type"] == "lp" and arguments.Config["specification"]["norm"] != np.inf:
             print('Only Linf-norm attack is supported, the pgd_order will be changed to skip')
             arguments.Config["attack"]["pgd_order"] = "skip"
 
+    #加载module和其参数
     model_ori = load_model(weights_loaded=True)
-
+    #load epsilon参数
     if arguments.Config["specification"]["epsilon"] is not None:
         perturb_epsilon = torch.tensor(arguments.Config["specification"]["epsilon"], dtype=torch.get_default_dtype())
     else:

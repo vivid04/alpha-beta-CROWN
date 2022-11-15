@@ -250,14 +250,16 @@ def load_model(weights_loaded=True):
     Load the model architectures and weights
     """
     # You can customize this function to load your own model based on model name.
+    #eval(source),执行代码，反回，模型的原始original对象
     model_ori = eval(arguments.Config['model']['name'])()
-    model_ori.eval()
-    print(model_ori)
+    model_ori.eval()  #Sets the module in evaluation mode.  将模型设置为evalustion模式,非训练模式
+    print(model_ori)  
 
     if not weights_loaded:
         return model_ori
 
     if arguments.Config["model"]["path"] is not None:
+        #Loads an object saved with torch.save() from a file.
         sd = torch.load(arguments.Config["model"]["path"], map_location=torch.device('cpu'))
         if 'state_dict' in sd:
             sd = sd['state_dict']
@@ -265,6 +267,7 @@ def load_model(weights_loaded=True):
             sd = sd[0]
         if not isinstance(sd, dict):
             raise NotImplementedError("Unknown model format, please modify model loader yourself.")
+        #从models/eran/mnist_6_100_nat.pth 加载参数
         model_ori.load_state_dict(sd)
     else:
         print("Warning: pretrained model path is not given!")
@@ -444,7 +447,13 @@ def load_generic_dataset(eps_temp=None):
 def load_eran_dataset(eps_temp=None):
     """
     Load sampled data and define the robustness region
+
+     return: X, labels, data_max, data_min, eps_temp, runnerup
+    返回数据集，类型，最大值，最小值，eps_temp, runnerup
+    
+
     """
+    
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datasets/eran')
 
     if arguments.Config["data"]["dataset"] == "CIFAR_ERAN":
@@ -498,17 +507,17 @@ def load_eran_dataset(eps_temp=None):
         # print("max, min:", data_max, data_min)
         print("Note runnerup label is empty here!")
         print("############################")
-
+    #数据不进行正则化，print("Sampled data loaded. No normalization used!")
     elif arguments.Config["data"]["dataset"] == "MNIST_ERAN_UN":
-        X = np.load(os.path.join(database_path, "mnist_eran/X_eran.npy"))
+        X = np.load(os.path.join(database_path, "mnist_eran/X_eran.npy")) #X is [1000,1,28,28]的float数组,取值范围为[0,1.0]
 
-        labels = np.load(os.path.join(database_path, "mnist_eran/y_eran.npy"))
+        labels = np.load(os.path.join(database_path, "mnist_eran/y_eran.npy")) #labels,[1000], int64 
         runnerup = np.copy(labels)
         X = torch.from_numpy(X.astype(np.float32))
         labels = torch.from_numpy(labels.astype(int))
         runnerup = torch.from_numpy(runnerup.astype(int))
         if eps_temp is None: eps_temp = 0.3
-
+        #将eps, min, max 转换为与数据相同的维度
         eps_temp = torch.tensor(eps_temp.item()).reshape(1, -1, 1, 1)
         data_max = torch.tensor(1.).reshape(1, -1, 1, 1)
         data_min = torch.tensor(0.).reshape(1, -1, 1, 1)

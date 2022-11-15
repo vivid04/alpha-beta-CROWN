@@ -639,8 +639,12 @@ def mnist_conv_big():
     )
     return model
 
-
 def mnist_6_100():
+    """生成一个6层的神经网络，用于对MNIST图像作分类，输入784维，输出为10维
+
+    Returns:
+        _type_: _description_
+    """    
     model = nn.Sequential(
         Flatten(),
         nn.Linear(784,100),
