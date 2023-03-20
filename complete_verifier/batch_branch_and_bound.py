@@ -33,9 +33,9 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
     """_summary_
 
     Args:
-        d (_type_): _description_
-        net (_type_): _description_
-        batch (_type_): _description_
+        d (_type_): domains
+        net (_type_): neural network
+        batch (_type_): 批次
         pre_relu_indices (_type_): _description_
         growth_rate (_type_): _description_
         layer_set_bound (bool, optional): _description_. Defaults to True.
@@ -57,7 +57,7 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
     branching_reduceop = arguments.Config['bab']['branching']['reduceop']
     get_upper_bound = arguments.Config["bab"]["get_upper_bound"]
     DFS_percent = arguments.Config["bab"]["dfs_percent"]
-    branching_candidates = arguments.Config["bab"]["branching"]["candidates"]
+    branching_candidates = arguments.Config["bab"]["branching"]["candidates"] #候选分枝当使用fsb,或kfsb
     dive_rate = 0
 
     total_time = time.time()
@@ -233,10 +233,10 @@ def relu_bab_parallel(net, domain, x, use_neuron_set_strategy=False, refined_low
     tot_ambi_nodes = 0
     for i, layer_mask in enumerate(updated_mask):
         n_unstable = int(torch.sum(layer_mask).item())
-        print(f'layer {i} size {layer_mask.shape[1:]} unstable {n_unstable}')
+        print(f'第 {i} layer size = {layer_mask.shape[1:]} with unstable {n_unstable} nodes')
         tot_ambi_nodes += n_unstable
 
-    print(f'-----------------\n# of unstable neurons: {tot_ambi_nodes}\n-----------------\n')
+    print(f'-----------------\n# of total unstable neurons(不定态神经元总数量): {tot_ambi_nodes}\n-----------------\n')
     
     glb_record = [[time.time()-start, global_lb]]
     stop_condition = len(domains) > 0
@@ -245,19 +245,19 @@ def relu_bab_parallel(net, domain, x, use_neuron_set_strategy=False, refined_low
         if len(domains) > 80000 and len(domains) % 10000 < batch * 2 and use_neuron_set_strategy:  # do two batch of neuron set bounds  per 10000 domains
             # neuron set  bounds cost more memory, we set a smaller batch here
             global_lb, batch_ub = batch_verification(domains, net, int(batch/2), pre_relu_indices, 0, layer_set_bound=False,
-                                        adv_pool=adv_pool)
+                                        adv_pool = adv_pool)
         else:
-            global_lb, batch_ub = batch_verification(domains, net, batch, pre_relu_indices, 0,
-                                        layer_set_bound=not opt_intermediate_beta,
-                                        adv_pool=adv_pool)
+            global_lb, batch_ub = batch_verification(domains, net, batch, pre_relu_indices, 0,   layer_set_bound=not opt_intermediate_beta,
+                                        adv_pool = adv_pool)
         print(f"Global ub: {global_ub}, batch ub: {batch_ub}")
         global_ub = min(global_ub, batch_ub)
         stop_condition = len(domains) > 0
-
+         
+        # isinstance(obj, class) 判断对象obj 是否为class类型的实例
         if isinstance(global_lb, torch.Tensor):
-            global_lb = global_lb.item()
+            global_lb = global_lb.item()#如果是Tensor，则返回值
         if isinstance(global_ub, torch.Tensor):
-            global_ub = global_ub.item()
+            global_ub = global_ub.item()#同上
 
         if all_node_split:
             del domains

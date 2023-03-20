@@ -1,5 +1,5 @@
 general:
-  mode: crown-only-verified-acc #verified-acc
+  mode: verified-acc #For example, if you want to run robustness verification on the ResNet-2B model, changing epsilon from 2/255 (specified in config file) to 1/255:
   complete_verifier: bab
 model:
   name: mnist_6_100
@@ -14,11 +14,11 @@ specification:
 #  pgd_order: after
 solver:
   beta-crown:
-    batch_size: 64
+    batch_size: 8
     iteration: 20
   
 bab:
   timeout: 300
   branching:
-    method: sb
+    method: babsr
     reduceop: max

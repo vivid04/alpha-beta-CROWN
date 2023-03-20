@@ -11,34 +11,43 @@
 ##        contained in the LICENCE file in this directory.             ##
 ##                                                                     ##
 #########################################################################
-"""alpha-beta-CROWN verifier interface to handle robustness verification."""
+"""
+    主程序，用于鲁棒性验证
+    alpha-beta-CROWN verifier interface to handle robustness verification.
 
+"""
+
+import gc
 import os
+import random
 import re
 import socket
-import random
 import time
-import gc
 
-from utils import get_test_acc, load_model, load_verification_dataset
-
+import arguments
 import numpy as np
 import pandas as pd
-
 import torch
-import arguments
+from attack_pgd import pgd_attack
+from bab_verification_general import bab, incomplete_verifier, mip
+from utils import (Normalization, get_pgd_acc, get_test_acc, load_model,
+                   load_verification_dataset)
+
 from auto_LiRPA import BoundedModule, BoundedTensor
 from auto_LiRPA.perturbations import PerturbationLpNorm
-from bab_verification_general import mip, incomplete_verifier, bab
-from attack_pgd import pgd_attack
-from utils import Normalization, get_pgd_acc
 
 
+#配置参数
 def config_args():
     # Add arguments specific for this front-end.
     h = ["general"]
-    arguments.Config.add_argument("--mode", type=str, default="verified-acc", choices=["verified-acc", "runnerup", "clean-acc", "crown-only-verified-acc", "alpha-crown-only-verified-acc", "ibp-only-verified-acc", "attack-only", "specify-target"],
-            help='Verify against all labels ("verified-acc" mode), or just the runnerup labels ("runnerup" mode), or using a specified label in dataset ("speicify-target" mode, only used for oval20). Mode can also be set as "crown-only-verified-acc" or "alpha-crown-only-verified-acc", which quickly computes the verified accuracy over the entire dataset via CROWN or alpha-CROWN.', hierarchy=h + ["mode"])
+    #arguments是module,而Config是模块中定义的一个ConfigHandler类的object
+    arguments.Config.add_argument("--mode", 
+    type=str, default="verified-acc", 
+    choices=["verified-acc", "runnerup", "clean-acc", "crown-only-verified-acc", "alpha-crown-only-verified-acc", "ibp-only-verified-acc", "attack-only", "specify-target"],
+     help='Verify against all labels ("verified-acc" mode), or just the runnerup labels ("runnerup" mode), or using a specified label in dataset ("speicify-target" mode, only used for oval20). Mode can also be set as "crown-only-verified-acc" or "alpha-crown-only-verified-acc", which quickly computes the verified accuracy over the entire dataset via CROWN or alpha-CROWN.', 
+     hierarchy=h + ["mode"]
+     )
     arguments.Config.add_argument('--complete_verifier', choices=["bab", "mip", "bab-refine", "skip"], default="bab",
             help='Complete verification verifier. "bab": branch and bound with beta-CROWN; "mip": mixed integer programming (MIP) formulation; "bab-refine": branch and bound with intermediate layer bounds computed by MIP.', hierarchy=h + ["complete_verifier"])
     arguments.Config.add_argument('--no_incomplete', action='store_false', dest='incomplete',
@@ -69,10 +78,11 @@ def config_args():
 
 
 def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size, method="CROWN"):
-    """For quickly checking clean accuracy and CROWN verified accuracy."""
+    """ 用于计算clean accuray 和 CROWN验证的精确度    For quickly checking clean accuracy and CROWN verified accuracy."""
     assert method == "CROWN" or method == "alpha-CROWN" or method == "IBP"
     # Clearn accuracy
     predicted = model(image)
+    #计算出正确难测数
     n_correct = (predicted.argmax(dim=1) == true_label).sum().item()
     print(f'{n_correct} examples are correct, image range ({image.min()}, {image.max()})')
 
@@ -147,9 +157,17 @@ def main():
         ValueError: _description_
         ValueError: _description_
     """    
+    #f-string用法： f-string，亦称为格式化字符串常量（formatted string literals）
     print(f'Experiments at {time.ctime()} on {socket.gethostname()}')
-    torch.manual_seed(arguments.Config["general"]["seed"])#设置随机的种子，包括torch, numpy, python
+
+
+    #设置随机的种子，包括torch, numpy, python
+    torch.manual_seed(arguments.Config["general"]["seed"])
+
+    #从配置文件中读取参数，并设置
     random.seed(arguments.Config["general"]["seed"])
+
+
     np.random.seed(arguments.Config["general"]["seed"])
     #
     if arguments.Config["general"]["device"] != 'cpu':
@@ -611,5 +629,7 @@ def main():
 
 
 if __name__ == "__main__":
+    #先执行函数
     config_args()
+    #再调用主函数
     main()

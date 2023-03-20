@@ -4,54 +4,30 @@
     // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/complete_verifier",
-             "args": ["robustness_verifier.py",
-              "--config",
-              "exp_configs/cifar_resnet_2b.yaml"]
-        },
-        {
-            "name": "Python: robust_verifier",
-            "type": "python",
-            "request": "launch",
-            "program": "robustness_verifier.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/complete_verifier",
-             "args": [
-              "--config",
-              "exp_configs/cifar_resnet_2b.yaml"]
-        },
-        {
-            "name": "Python: mnist_6_100_crown",
-            "type": "python",
-            "request": "launch",
-            "program": "robustness_verifier.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/complete_verifier",
-             "args": [
-              "--config",
-              "exp_configs/mnist_6_100_basic.yaml"]
-        }
-        ,
-        {
-            "name": "Python: mnist_6_100_bab_sb",
-            "type": "python",
-            "request": "launch",
-            "program": "robustness_verifier.py",
-            "console": "integratedTerminal",
-            "justMyCode": false,
-            "cwd": "${workspaceFolder}/complete_verifier",
-             "args": [
-              "--config",
-              "exp_configs/mnist_6_100_bab_sb.yaml"]
-        }
+        {"name": "Python: cifar_cnn_a_adv.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_a_adv.yaml"]} ,
+        {"name": "Python: cifar_cnn_a_adv4.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_a_adv4.yaml"]} ,
+        {"name": "Python: cifar_cnn_a_mix.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_a_mix.yaml"]} ,
+        {"name": "Python: cifar_cnn_a_mix4.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_a_mix4.yaml"]} ,
+        {"name": "Python: cifar_cnn_b_adv.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_b_adv.yaml"]} ,
+        {"name": "Python: cifar_cnn_b_adv4.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_cnn_b_adv4.yaml"]} ,
+        {"name": "Python: cifar_conv_big.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_conv_big.yaml"]} ,
+        {"name": "Python: cifar_conv_small.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_conv_small.yaml"]} ,
+        {"name": "Python: cifar_resnet_2b.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_resnet_2b.yaml"]} ,
+        {"name": "Python: cifar_resnet_wong.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_resnet_wong.yaml"]} ,
+        {"name": "Python: cifar_sample.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/cifar_sample.yaml"]} ,
+        {"name": "Python: mnist_6_100.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_6_100.yaml"]} ,
+        {"name": "Python: mnist_6_100_bab_sb.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_6_100_bab_sb.yaml"]} ,
+        {"name": "Python: mnist_6_100_basic.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_6_100_basic.yaml"]} ,
+        {"name": "Python: mnist_6_200.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_6_200.yaml"]} ,
+        {"name": "Python: mnist_9_100.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_9_100.yaml"]} ,
+        {"name": "Python: mnist_9_200.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_9_200.yaml"]} ,
+        {"name": "Python: mnist_cnn_a_adv.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_cnn_a_adv.yaml"]} ,
+        {"name": "Python: mnist_conv_big.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_conv_big.yaml"]} ,
+        {"name": "Python: mnist_conv_small.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_conv_small.yaml"]} ,
+        {"name": "Python: mnist_sample.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/mnist_sample.yaml"]} ,
+        {"name": "Python: oval_base.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/oval_base.yaml"]} ,
+        {"name": "Python: oval_deep.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/oval_deep.yaml"]} ,
+        {"name": "Python: oval_wide.yaml", "type": "python", "request": "launch", "program": "robustness_verifier.py", "console": "integratedTerminal", "justMyCode": false, "cwd": "${workspaceFolder}/complete_verifier", "args": ["--config", "exp_configs/oval_wide.yaml"]} ,
+      
     ]
 }

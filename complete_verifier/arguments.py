@@ -34,7 +34,10 @@ class ConfigHandler:
                 # The entries will be created in add_argument() method.
         }
         # Stores all arguments according to their hierarchy.
+        #字典类，存储参数
+        
         self.all_args = {}
+        
         # Parses all arguments with their defaults.
         self.defaults_parser = argparse.ArgumentParser()
         # Parses the specified arguments only. Not specified arguments will be ignored.
@@ -123,6 +126,7 @@ class ConfigHandler:
         h = ["attack"]
         self.add_argument('--pgd_order', choices=["before", "after", "skip"], default="before",  help='Run PGD before/after incomplete verification, or skip it.', hierarchy=h + ["pgd_order"])
 
+    #*args是顺序，**kwargs是命名式的参数
     def add_argument(self, *args, **kwargs):
 
         """Add a single parameter to the parser. We will check the 'hierarchy' specified and then pass the remaining arguments to argparse."""
@@ -261,7 +265,7 @@ class ConfigHandler:
             and x is an instance of this class, then x[i] is roughly equivalent to type(x).__getitem__(x, i). 
         """
         return self.all_args[key]
-
+    #设置参数
     def __setitem__(self, key, value):
         """Set an item from the dictionary of parameters."""
         self.all_args[key] = value
