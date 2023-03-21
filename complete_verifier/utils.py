@@ -52,6 +52,20 @@ def conv_output_shape(h_w, kernel_size=1, stride=1, pad=0, dilation=1):
 
 
 def get_pgd_acc(model, X, labels, eps, data_min, data_max, batch_size):
+    """计算PGD下的验证率
+
+    Args:
+        model (_type_): _description_
+        X (_type_): _description_
+        labels (_type_): _description_
+        eps (_type_): _description_
+        data_min (_type_): _description_
+        data_max (_type_): _description_
+        batch_size (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """    
     start = 0
     total = X.size(0)
     clean_correct = 0
@@ -97,16 +111,28 @@ def get_pgd_acc(model, X, labels, eps, data_min, data_max, batch_size):
             print(clean_output[:10].detach().cpu().numpy())
             print("PGD prediction for first a few examples:")
             print(attack_output[:10].detach().cpu().numpy())
-        print(f'batch size {end - start}, clean correct {batch_clean_correct}, robust correct {batch_robust_correct}')
+        print(f'PGD batch size {end - start}, clean correct {batch_clean_correct}, robust correct {batch_robust_correct}')
         clean_correct += batch_clean_correct
         robust_correct += batch_robust_correct
         start += batch_size
         del clean_output, best_deltas, last_deltas, attack_images, attack_output
-    print(f'data size {total}, clean correct {clean_correct}, robust correct {robust_correct}')
+    print(f'PGD data size {total}, clean correct {clean_correct}, robust correct {robust_correct}')
     return clean_correct, robust_correct
 
 
 def get_test_acc(model, input_shape=None, X=None, labels=None, is_channel_last=False, batch_size=256):
+    """ 计算无噪声状态的的分类正确率
+    Args:
+        model (_type_): 神经网络
+        input_shape (_type_, optional): 待分类图像的shape（1,28,28)/(3,32,32).
+        X (_type_, optional): 样本数据.
+        labels (_type_, optional): 正确的标签.
+        is_channel_last (bool, optional): 是否将图像的通道维数放在最在后.
+        batch_size (int, optional): 批次.
+
+    Raises:
+        RuntimeError: _description_
+    """    
     device = arguments.Config["general"]["device"]
     if X is None and labels is None:
         # Load MNIST or CIFAR, used for quickly debugging.
@@ -135,16 +161,18 @@ def get_test_acc(model, input_shape=None, X=None, labels=None, is_channel_last=F
                 images = images.to(device)
                 labels = labels.to(device)
             if is_channel_last:
-                images = images.permute(0,2,3,1)
-            outputs = model(images)
+                images = images.permute(0,2,3,1)#Returns a view of the original tensor input with its dimensions permuted.将通道维放在最后
+            outputs = model(images)#对图像进行预测
             _, predicted = torch.max(outputs, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            if print_first_batch:
+            total += labels.size(0) #计算总数
+            correct += (predicted == labels).sum().item() #计算正确识别数
+            if print_first_batch: #打印第一批图像
                 print_first_batch = False
+                print(f'输出第一批的预测结果')
                 for i in range(min(outputs.size(0), 10)):
-                    print(f"Image {i} norm {images[i].abs().sum().item()} label {labels[i].item()} correct {labels[i].item() == outputs[i].argmax().item()}\nprediction {outputs[i].cpu().numpy()}")
-    print(f'correct {correct} of {total}')
+                    #print(f"Image-{i} : norm(1范数) {images[i].abs().sum().item()},  label: {labels[i].item()}, Is correct: {labels[i].item() == outputs[i].argmax().item()}\nprediction {outputs[i].cpu().numpy()}")
+                    print(f"Image-{i:4d} : norm(1范数) {images[i].abs().sum().item():9.4f},  原始标签: {labels[i].item()}, 分类输出：{outputs[i].argmax().item()} 是否正确: {labels[i].item() == outputs[i].argmax().item()}")
+    print(f'正确分类结果： {correct} / {total}')
 
 
 def load_onnx(path):
@@ -570,15 +598,22 @@ def Customized(def_file, callable_name, *args, **kwargs):
 
 
 def load_verification_dataset(eps_before_normalization):
+    """
+     Returns: 加截数据X, labels, runnerup, data_max, data_min, eps, target_label.
+
+    Args:
+        eps_before_normalization : 噪声的范围 
+    Returns:
+         X     :   is the data matrix in (batch, ...).
+         labels:   are the groud truth labels, a tensor of integers.
+         runnerup: is the runnerup label used for quickly verify against the runnerup (second largest) label, can be set to None.
+         data_max: is the per-example perturbation upper bound, shape (batch, ...) or (1, ...).
+         data_min: is the per-example perturbation lower bound, shape (batch, ...) or (1, ...).
+         eps     : is the Lp norm perturbation epsilon. Can be set to None if element-wise perturbation (specified by data_max and data_min) is used.
+         Target_label: is the targeted attack label; can be set to None.
+    """    
     if arguments.Config["data"]["dataset"].startswith("Customized("):
-        # Returns: X, labels, runnerup, data_max, data_min, eps, target_label.
-        # X is the data matrix in (batch, ...).
-        # labels are the groud truth labels, a tensor of integers.
-        # runnerup is the runnerup label used for quickly verify against the runnerup (second largest) label, can be set to None.
-        # data_max is the per-example perturbation upper bound, shape (batch, ...) or (1, ...).
-        # data_min is the per-example perturbation lower bound, shape (batch, ...) or (1, ...).
-        # eps is the Lp norm perturbation epsilon. Can be set to None if element-wise perturbation (specified by data_max and data_min) is used.
-        # Target label is the targeted attack label; can be set to None.
+      
         if arguments.Config["specification"]["type"] == "lp":
             data_config = eval(arguments.Config["data"]["dataset"])(eps=eps_before_normalization)
         elif arguments.Config["specification"]["type"] == "bound":

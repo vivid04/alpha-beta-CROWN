@@ -45,7 +45,7 @@ class LiRPAConvNet:
         self.input_shape = in_size
         self.net = BoundedModule(net, torch.zeros(in_size, device=device), bound_opts={'relu': 'adaptive', 'deterministic': deterministic, 'conv_mode': conv_mode},
                                  device=device)
-        self.net.eval()
+        self.net.eval()#将模型设置为测试模型，非训练模型
         self.needed_A_dict = None
         self.pool = None   # For multi-process.
         self.pool_result = None

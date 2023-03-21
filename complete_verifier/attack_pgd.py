@@ -73,6 +73,35 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, num_restarts,
         multi_targeted=True, num_classes=10, use_adam=True, lr_decay=0.98,
         lower_limit=0.0, upper_limit=1.0, normalize=lambda x: x, early_stop=True, target=None,
         initialization='uniform'):
+    """基于梯度下降法的攻击
+
+    Args:
+        model (_type_): _description_
+        X (_type_): _description_
+        y (_type_): _description_
+        epsilon (_type_): _description_
+        alpha (_type_): _description_
+        attack_iters (_type_): _description_
+        num_restarts (_type_): _description_
+        multi_targeted (bool, optional): _description_. Defaults to True.
+        num_classes (int, optional): _description_. Defaults to 10.
+        use_adam (bool, optional): _description_. Defaults to True.
+        lr_decay (float, optional): _description_. Defaults to 0.98.
+        lower_limit (float, optional): _description_. Defaults to 0.0.
+        upper_limit (float, optional): _description_. Defaults to 1.0.
+        normalize (_type_, optional): _description_. Defaults to lambdax:x.
+        early_stop (bool, optional): _description_. Defaults to True.
+        target (_type_, optional): _description_. Defaults to None.
+        initialization (str, optional): _description_. Defaults to 'uniform'.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    y = y.type(torch.long)
 
     if initialization == 'osi':
         if multi_targeted:
@@ -91,12 +120,13 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, num_restarts,
         # Add two extra dimensions for targets. Shape is (batch, restarts, target, ...).
         X = X.unsqueeze(1).unsqueeze(1).expand(-1, *extra_dim, *(-1,) * (X.ndim - 1))
         # Generate target label list for each example.
-        E = torch.eye(num_classes, dtype=X.dtype, device=X.device)
-        c = E.unsqueeze(0) - E[y].unsqueeze(1)
+        E = torch.eye(num_classes, dtype=X.dtype, device=X.device)# 生成对角线元素为1的矩阵
+        #c = E.unsqueeze(0) - E[y].unsqueeze(1)
+        c = E.unsqueeze(0) - E[y].unsqueeze(1)#[1,10,10]-[8,1,10]
         # remove specifications to self.
         I = ~(y.unsqueeze(1) == torch.arange(num_classes, device=y.device).unsqueeze(0))
         # c has shape (batch, num_classes - 1, num_classes).
-        c = c[I].view(input_shape[0], num_classes - 1, num_classes)
+        c = c[I].view(input_shape[0], num_classes - 1, num_classes) #是行优先，取数据是
         # c has shape (batch, restarts, num_classes - 1, num_classes).
         c = c.unsqueeze(1).expand(-1, num_restarts, -1, -1)
         target_y = y.view(-1,*(1,) * len(extra_dim),1).expand(-1, *extra_dim, 1)

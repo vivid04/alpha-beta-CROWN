@@ -17,6 +17,12 @@ class BoundedTensor(Tensor):
             return super().__new__(cls, x, *args, **kwargs)
 
     def __init__(self, x, ptb):
+        """_summary_
+
+        Args:
+            x (_type_): _description_
+            ptb (_type_): _description_
+        """        
         self.ptb = ptb
 
     def __repr__(self):

@@ -21,7 +21,8 @@ warnings.simplefilter("once")
 
 
 class BoundedModule(nn.Module):
-    """Bounded module with support for automatically computing bounds.
+    """用于自动计算界的模型
+    Bounded module with support for automatically computing bounds.
 
     Args:
         model (nn.Module): The original model to be wrapped by BoundedModule.
@@ -127,8 +128,14 @@ class BoundedModule(nn.Module):
         return self.non_deter_wrapper(torch.index_select, *args, **kwargs)
 
     def set_bound_opts(self, new_opts):
+        """设置定界的选项参数optimize_bound_args
+
+        Args:
+            new_opts (dict): _description_
+        """        
         for k, v in new_opts.items():
-            assert v is not dict, 'only support change optimize_bound_args'
+            #assert v is not dict, 'only support change optimize_bound_args'
+            assert type(v) is  dict, 'only support change optimize_bound_args' #判定一个变量的类型是否为要用type(v) is 
             self.bound_opts[k].update(v)
 
     def __call__(self, *input, **kwargs):

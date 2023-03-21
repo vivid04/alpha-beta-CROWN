@@ -78,18 +78,33 @@ def config_args():
 
 
 def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size, method="CROWN"):
-    """ 用于计算clean accuray 和 CROWN验证的精确度    For quickly checking clean accuracy and CROWN verified accuracy."""
+    """计算 CROWN/alpha-CRONW/IBP方法的验证结果，无返回值
+
+    Args:
+        model (_type_): 被验证模型
+        image (_type_): 数据
+        true_label (_type_): 数据的正确标签
+        eps (_type_): 噪声的范数
+        data_min (_type_): 数据最小值
+        data_max (_type_): 数据最大值
+        batch_size (_type_): 批次
+        method (str, optional): 方法，可以为CROWN/alpha-CRONW/IBP.
+    """
+    
+    
+    
     assert method == "CROWN" or method == "alpha-CROWN" or method == "IBP"
-    # Clearn accuracy
+    # 先计算无噪声模型的正确率
     predicted = model(image)
     #计算出正确难测数
     n_correct = (predicted.argmax(dim=1) == true_label).sum().item()
-    print(f'{n_correct} examples are correct, image range ({image.min()}, {image.max()})')
+    print(f'{n_correct} of {len(image)} examples are correct, image range ({image.min()}, {image.max()})')
 
     # CROWN verified accuracy
     verified = 0
+    #总图像数
     N = image.size(0)
-    num_outputs = arguments.Config["data"]["num_outputs"]
+    num_outputs = arguments.Config["data"]["num_outputs"] #分类数量
     norm = np.inf
     assert norm == arguments.Config["specification"]["norm"]  # TODO: make this function support more norms.
     model = BoundedModule(model, torch.empty_like(image[:batch_size]), device=arguments.Config["general"]["device"])
@@ -107,15 +122,20 @@ def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size
     all_start_time = time.time()
     while batch_idx * batch_size < N:
         start_time = time.time()
+        #
         start_idx, end_idx = batch_idx*batch_size, min(batch_idx*batch_size+batch_size, N)
-        data, labels = image[start_idx:end_idx], torch.tensor(true_label[start_idx:end_idx])
+      #  data, labels = image[start_idx:end_idx], torch.tensor(true_label[start_idx:end_idx])
+        data, labels = image[start_idx:end_idx], true_label[start_idx:end_idx].clone().detach()
+        
+        #X is Tensor of  torch.Size([8, 1, 28, 28])
+        
         if arguments.Config["specification"]["type"] == "lp":
-            # Linf norm only so far.
-            data_ub = torch.min(data + eps, data_max)
-            data_lb = torch.max(data - eps, data_min)
+            # Linf norm only so far,元数取值的上下界
+            data_ub = torch.min(data + eps, data_max) #Computes the element-wise minimum of input and other.
+            data_lb = torch.max(data - eps, data_min) #Computes the element-wise maximum of input and other.
         else:
             # Per-example, per-element lower and upper bounds.
-            data_ub = data_max[start_idx:end_idx]
+            data_ub = data_max[start_idx:end_idx] #data_ub 和 data维数相同 torch.Size([8, 1, 28, 28])
             data_lb = data_min[start_idx:end_idx]
         data, data_lb, data_ub, labels = data.cuda(), data_lb.cuda(), data_ub.cuda(), labels.cuda()
 
@@ -137,9 +157,10 @@ def get_statistics(model, image, true_label, eps, data_min, data_max, batch_size
         # Print some bounds for the first batch for debugging.
         duration = time.time() - start_time
         if batch_idx == 0:
-            print("Bounds for first a few examples:")
-            print(lb[:10].detach().cpu().numpy())
-        print(f"batch: {batch_idx}, verified acc: {(lb.min(1)[0]>=0).sum().item()} / {data.size(0)}, time {duration}")
+            pass
+        #   print("Bounds for first a few examples:")
+        #    print(lb[:10].detach().cpu().numpy())
+        print(f"batch: {batch_idx:-3d}, verified acc: {(lb.min(1)[0]>=0).sum().item():3d} / {data.size(0):-4d}, time:  {duration:.2f}")
         del lb, ub
         batch_idx += 1
 
@@ -189,7 +210,7 @@ def main():
             print('Only Linf-norm attack is supported, the pgd_order will be changed to skip')
             arguments.Config["attack"]["pgd_order"] = "skip"
 
-    #加载module和其参数
+    #加载module和其参数-->'torch.nn.modules.container.Sequential'
     model_ori = load_model(weights_loaded=True)
     #load epsilon参数
     if arguments.Config["specification"]["epsilon"] is not None:
@@ -199,7 +220,7 @@ def main():
         perturb_epsilon = None
 
     X, labels, runnerup, data_max, data_min, perturb_epsilon, target_label = load_verification_dataset(perturb_epsilon)
-
+    #计算无干扰时的正确率
     if arguments.Config["general"]["mode"] == "clean-acc":
         print("Testing clean accuracy.")
         get_test_acc(model_ori, X=X, labels=labels, batch_size=arguments.Config["solver"]["beta-crown"]["batch_size"])
@@ -230,7 +251,7 @@ def main():
     if arguments.Config["data"]["data_idx_file"] is not None:
         # Go over a list of data indices.
         with open(arguments.Config["data"]["data_idx_file"]) as f:
-            bnb_ids = re.split(r'[;|,|\n|\s]+', f.read().strip())
+            bnb_ids = re.split(r'[;|,|\n|\s]+', f.read().strip())#对字符串进行分割
             bnb_ids = [int(b_id) for b_id in bnb_ids]
             print(f'Example indices (total {len(bnb_ids)}): {bnb_ids}')
     else:
@@ -246,7 +267,7 @@ def main():
                arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"])
     print(f'saving results to {save_path}')
 
-    #选择模式
+    #选择模式，仅使用crown验证
     if arguments.Config["general"]["mode"] == "crown-only-verified-acc":
         get_statistics(model_ori, X, labels, perturb_epsilon, data_min, data_max, batch_size=arguments.Config["solver"]["beta-crown"]["batch_size"])
         return
@@ -258,6 +279,9 @@ def main():
         return
     if arguments.Config["general"]["mode"] == "attack-only":
         get_pgd_acc(model_ori, X, labels, perturb_epsilon, data_min, data_max, batch_size=arguments.Config["solver"]["beta-crown"]["batch_size"])
+        return
+        ##直接退出
+
 
     ret, lb_record, attack_success = [], [], []
     mip_unsafe, mip_safe, mip_unknown = [], [], []
@@ -273,14 +297,16 @@ def main():
     if isinstance(perturb_epsilon, torch.Tensor):
         perturb_eps = perturb_epsilon.to(arguments.Config["general"]["device"])
 
+    #enumerate返回(id,value[id])pair 对
     for new_idx, imag_idx in enumerate(bnb_ids):
         arguments.Config["bab"]["timeout"] = orig_timeout
-        print('\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% idx:', new_idx, 'img ID:', imag_idx, '%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+        print('\n %%% idx:', new_idx, 'img ID:', imag_idx, '%%%')
         torch.cuda.empty_cache()
         gc.collect()
 
         x, y = X[imag_idx], int(labels[imag_idx].item())
         x = x.unsqueeze(0).to(dtype=torch.get_default_dtype(), device=arguments.Config["general"]["device"])
+        #bound的类型
         if arguments.Config["specification"]["type"] == 'bound':
             data_min = all_data_min[imag_idx].unsqueeze(0)
             data_max = all_data_max[imag_idx].unsqueeze(0)
@@ -289,18 +315,22 @@ def main():
             data_max = all_data_max
         # first check the model is correct at the input
         logit_pred = model_ori(x)[0]
+        
         if logit_pred.size(0) > 1:
             # Multi-class.
+            #torch.max返回一个tuple(value, indx)包信了最大值，及索引，因此y_pred[0]是最值，y_pred[1]是索引
             y_pred = torch.max(logit_pred, 0)[1].item()
         else:
             # Binary classifier: logit_pred > 0 => label 1, otherwise label 0.
-            y_pred = int(logit_pred.item() > 0)
+            y_pred = int(logit_pred.item() > 0)#tensor.item()
 
         if type(perturb_epsilon) is list:
             # Each image has different epsilon (e.g., OVAL 20).
             perturb_eps = perturb_epsilon[imag_idx].to(arguments.Config["general"]["device"])
 
-        print(f'predicted label {y_pred}, correct label {y}, image norm {x.abs().sum().item()}, logits {logit_pred}')
+       # print(f'predicted label {y_pred}, correct label {y}, image norm {x.abs().sum().item()}, logits {logit_pred}')
+        print(f'predicted_label:{y_pred}, correct_label: {y}, image norm: {x.abs().sum().item()}')
+        #当预测错误时，直接跳过
         if y_pred != y:
             print(f'Result: image {imag_idx} prediction is incorrect, skipped.')
             skipped_examples.append(imag_idx)
@@ -365,11 +395,12 @@ def main():
             arguments.Config["bab"]["timeout"] -= (time.time()-start_incomplete)
             ret.append([imag_idx, 0, 0, time.time()-start_incomplete, new_idx, -1, np.inf, np.inf])
 
-        if verified_success:
+        if verified_success:#使用非完全验证与完全验证的组合
             print(f"Result: image {imag_idx} verification success (with incomplete verifier)!")
             verified_success_list.append(imag_idx)
             example_time.append(time.time() - example_start_time)
-            print(f'Wall time: {example_time[-1]}')
+            #print(f'Wall time: {example_time[-1]}')
+            print(f'总用时: {example_time[-1]}')
             continue
 
         if arguments.Config["attack"]["pgd_order"] == "after":
