@@ -5,10 +5,9 @@ __pycache__
 dist
 *.swp
 *.log
+*.docx
 .trace_graph
 Verified_ret*.npy
 Verified-acc*.npy
 vnn-comp_*.npz
 ~$n_results.docx
-~$ndows下安装步骤.docx
-~$torch学习笔记.docx
