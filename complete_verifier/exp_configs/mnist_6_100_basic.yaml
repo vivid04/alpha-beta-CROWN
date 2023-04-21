@@ -15,13 +15,13 @@ model:
   name: mnist_6_100
   path: models/eran/mnist_6_100_nat.pth
 data:
-  dataset: MNIST_ERAN_UN
+  dataset: MNIST_ERAN #unnormal
   std: [1.0]
   mean: [0.0]
   start: 0
-  end: 10
+  end: 100
 specification:
-  epsilon: 0.026
+  epsilon: 0.02
 attack:
   pgd_order: skip
 solver:
@@ -31,7 +31,7 @@ solver:
     lr_beta: 0.05
     lr_decay: 0.98
     optimizer: adam
-    iteration: 20
+    iteration: 5
     beta: true
     beta_warmup: true
   alpha-crown:
@@ -40,7 +40,7 @@ solver:
     share_slopes: false
     no_joint_opt: false
 bab:
-  timeout: 10 # timeout(in seconds) for verifying one image/property
+  timeout: 40 # timeout(in seconds) for verifying one image/property
   branching:
-    method: babsr
+    method: kfsb #
     reduceop: max
