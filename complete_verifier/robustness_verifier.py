@@ -180,7 +180,7 @@ def main():
     """    
     #f-string用法： f-string，亦称为格式化字符串常量（formatted string literals）
     print(f'Experiments at {time.ctime()} on {socket.gethostname()}')
-
+    st_time = time.time()
 
     #设置随机的种子，包括torch, numpy, python
     torch.manual_seed(arguments.Config["general"]["seed"])
@@ -205,7 +205,7 @@ def main():
         torch.set_default_dtype(torch.float64)
 
     if arguments.Config["attack"]["pgd_order"] != "skip":
-        #仅直接lp, inf形式的norm,如果是其他形式的，则不执行attack
+        #仅直接lp, inf形式的norm,如果是其他形式的，则不执行attack,pgd只有在无穷范数时，才可以
         if arguments.Config["specification"]["type"] == "lp" and arguments.Config["specification"]["norm"] != np.inf:
             print('Only Linf-norm attack is supported, the pgd_order will be changed to skip')
             arguments.Config["attack"]["pgd_order"] = "skip"
@@ -225,7 +225,7 @@ def main():
         print("Testing clean accuracy.")
         get_test_acc(model_ori, X=X, labels=labels, batch_size=arguments.Config["solver"]["beta-crown"]["batch_size"])
         return
-
+     #MNIST是黑白的数字图像集
     if "MNIST" in arguments.Config["data"]["dataset"]:
         attack_dataset = "MNIST"
     elif "CIFAR" in arguments.Config["data"]["dataset"]:
@@ -657,8 +657,10 @@ def main():
         print("mean time [cnt:{}] (excluding attack success): {}".format(total_verification, ret[:, 3][ret[:, 5] != -3].sum()/float(total_verification if total_verification != 0 else "nan")))
         if len(attack_success) > 0:
             print("mean time [cnt:{}] (including attack success): {}".format(total_verification + len(attack_success), ret[:, 3].sum() / float(total_verification + len(attack_success))))
-
-
+    print("branching method:", arguments.Config["bab"]["branching"]["method"])
+    ed_time = time.time()
+    if verified_acc >0 :
+            print(f"Average time:{(ed_time-st_time)/verified_acc}")
 if __name__ == "__main__":
     #先执行函数
     config_args()

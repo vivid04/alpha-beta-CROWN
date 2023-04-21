@@ -279,7 +279,7 @@ def load_model(weights_loaded=True):
     """
     # You can customize this function to load your own model based on model name.
     #eval(source),执行代码，反回，模型的原始original对象
-    model_ori = eval(arguments.Config['model']['name'])()
+    model_ori = eval(arguments.Config['model']['name'])()#
     model_ori.eval()  #Sets the module in evaluation mode.  将模型设置为evalustion模式,非训练模式
     print(model_ori)  
 

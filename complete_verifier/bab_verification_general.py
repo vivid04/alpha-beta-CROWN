@@ -638,4 +638,9 @@ def main():
 
 if __name__ == "__main__":
     config_args()
+    print(arguments.Config["bab"]["branching"]["method"])
+
     main()
+    print("Branching method:" ,arguments.Config["bab"]["branching"]["method"])
+
+

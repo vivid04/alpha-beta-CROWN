@@ -19,8 +19,9 @@ from collections import defaultdict, Counter
 
 from auto_LiRPA.utils import stop_criterion_sum
 from branching_domains import pick_out_batch, add_domain_parallel, ReLUDomain, SortedList, DFS_SortedList, merge_domains_params
-from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB
+from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB,choose_node_parallel_crown_random_hsc
 import arguments
+#from complete_verifier.branching_heuristics import choose_node_parallel_crown_random
 
 
 Visited, Flag_first_split = 0, True
@@ -87,8 +88,15 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
             branching_decision = choose_node_parallel_kFSB(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                             branching_candidates=branching_candidates, branching_reduceop=branching_reduceop,
                                             slopes=slopes, betas=betas, history=history)
+        elif branching_method == 'sb':
+              branching_decision = choose_node_parallel_crown_random_hsc(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+                                                            batch=batch, branching_reduceop=branching_reduceop)
         else:#"sb"未实现
+            print("sb not implemented")
             raise NotImplementedError
+            #branching_decision = choose_node_parallel_crown(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+             #                                               batch=batch, branching_reduceop=branching_reduceop)
+  
 
         if len(branching_decision) < len(mask[0]):
             print('all nodes are split!!')
