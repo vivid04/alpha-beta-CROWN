@@ -260,11 +260,11 @@ def main():
 
     bnb_ids = bnb_ids[arguments.Config["data"]["start"]:  arguments.Config["data"]["end"]]
     print('Task length:', len(bnb_ids))
-
-    save_path = 'Verified_ret_[{}]_start={}_end={}_iter={}_b={}_timeout={}_branching={}-{}-{}_lra-init={}_lra={}_lrb={}_PGD={}.npy'. \
+    #记录保存
+    save_path = 'Verified_ret_[{}]_start={}_end={}_iter={}_b={}_timeout={}_branching={}-{}-{}_lra-init={}_lra={}_lrb={}_PGD={}_rtim={}.npy'. \
         format(arguments.Config['model']['name'], arguments.Config["data"]["start"],  arguments.Config["data"]["end"], arguments.Config["solver"]["beta-crown"]["iteration"], arguments.Config["solver"]["beta-crown"]["batch_size"],
                arguments.Config["bab"]["timeout"], arguments.Config["bab"]["branching"]["method"], arguments.Config["bab"]["branching"]["reduceop"],
-               arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"])
+               arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"],    time.strftime('%Y-%m-%d_%H%M%S'))
     print(f'saving results to {save_path}')
 
     #选择模式，仅使用crown验证
@@ -377,7 +377,7 @@ def main():
                         data_ub = data + perturb_eps  # perturb_eps is already normalized.
                         data_lb = data - perturb_eps
                     else:
-                        data_ub = torch.min(data + perturb_eps, data_max)
+                        data_ub = torch.min(data + perturb_eps, data_max) #数据的上下界
                         data_lb = torch.max(data - perturb_eps, data_min)
                 else:
                     data_ub = data_lb = data
@@ -396,12 +396,15 @@ def main():
             ret.append([imag_idx, 0, 0, time.time()-start_incomplete, new_idx, -1, np.inf, np.inf])
 
         if verified_success:#使用非完全验证与完全验证的组合
-            print(f"Result: image {imag_idx} verification success (with incomplete verifier)!")
+            print(f"Result: image {imag_idx} 验证成功 (with incomplete verifier)!")
             verified_success_list.append(imag_idx)
             example_time.append(time.time() - example_start_time)
             #print(f'Wall time: {example_time[-1]}')
             print(f'总用时: {example_time[-1]}')
             continue
+        else:
+             print(f"Result: image {imag_idx} 验证失败 (with incomplete verifier)!")
+
 
         if arguments.Config["attack"]["pgd_order"] == "after":
             start_attack = time.time()
@@ -660,7 +663,7 @@ def main():
     print("branching method:", arguments.Config["bab"]["branching"]["method"])
     ed_time = time.time()
     if verified_acc >0 :
-            print(f"Average time:{(ed_time-st_time)/verified_acc}")
+            print(f"Total time : {ed_time-st_time}, Average time:{(ed_time-st_time)/total_verification}")
 if __name__ == "__main__":
     #先执行函数
     config_args()

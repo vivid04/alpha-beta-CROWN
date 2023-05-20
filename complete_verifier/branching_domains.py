@@ -484,7 +484,7 @@ def pick_out_batch(domains, threshold, batch, device='cuda', DFS_percent=0, divi
 
     lower_bounds = []
     for j in range(len(lower_all[0])):
-        lower_bounds.append(torch.cat([lower_all[i][j]for i in range(batch)]))
+        lower_bounds.append(torch.cat([lower_all[i][j] for i in range(batch)]))
     lower_bounds = [t.to(device=device, non_blocking=True) for t in lower_bounds]
 
     upper_bounds = []
@@ -515,6 +515,7 @@ def pick_out_batch(domains, threshold, batch, device='cuda', DFS_percent=0, divi
     # Recompute the mask on GPU.
     new_masks = []
     for j in range(len(lower_bounds) - 1):  # Exclude the final output layer.
+        print("lower_bounds[0].shape",lower_bounds[0].shape)
         new_masks.append(torch.logical_and(lower_bounds[j] < 0, upper_bounds[j] > 0).view(lower_bounds[0].size(0), -1).float())
 
     if DFS_batch > 0:

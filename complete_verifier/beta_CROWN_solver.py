@@ -54,7 +54,23 @@ class LiRPAConvNet:
     
     def get_lower_bound(self, pre_lbs, pre_ubs, split, slopes=None, betas=None, history=None, layer_set_bound=True, 
                         split_history=None, single_node_split=True, intermediate_betas=None):
+        """_summary_
 
+        Args:
+            pre_lbs (_type_): _description_
+            pre_ubs (_type_): _description_
+            split (_type_): _description_
+            slopes (_type_, optional): _description_. Defaults to None.
+            betas (_type_, optional): _description_. Defaults to None.
+            history (_type_, optional): _description_. Defaults to None.
+            layer_set_bound (bool, optional): _description_. Defaults to True.
+            split_history (_type_, optional): _description_. Defaults to None.
+            single_node_split (bool, optional): _description_. Defaults to True.
+            intermediate_betas (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         """
         # (in) pre_lbs: layers list -> tensor(batch, layer shape)
         # (in) relu_mask: relu layers list -> tensor(batch, relu layer shape (view-1))
@@ -185,6 +201,16 @@ class LiRPAConvNet:
 
 
     def get_candidate(self, model, lb, ub):
+        """_summary_
+
+        Args:
+            model (_type_): _description_
+            lb (_type_): _description_
+            ub (_type_): _description_
+
+        Returns:
+            LIST: lower_bounds, upper_bounds, self.pre_relu_indices
+        """        
         # get the intermediate bounds in the current model and build self.name_dict which contains the important index
         # and model name pairs
 
@@ -1466,7 +1492,16 @@ class LiRPAConvNet:
 
 
     def build_the_model(self, input_domain, x, stop_criterion_func=stop_criterion_sum(0)):
+        """_summary_
 
+        Args:
+            input_domain (_type_): 输入域 
+            x (_type_): _description_
+            stop_criterion_func (_type_, optional): _description_. Defaults to stop_criterion_sum(0).
+
+        Returns:
+            _type_: _description_
+        """
         lr_init_alpha = arguments.Config["solver"]["alpha-crown"]["lr_alpha"]
         init_iteration = arguments.Config["solver"]["alpha-crown"]["iteration"]
         share_slopes = arguments.Config["solver"]["alpha-crown"]["share_slopes"]

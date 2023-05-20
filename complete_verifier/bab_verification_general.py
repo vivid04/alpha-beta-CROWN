@@ -123,9 +123,22 @@ def reshape_bounds(lower_bounds, upper_bounds, y, global_lb=None):
 
 
 def incomplete_verifier(model_ori, data, y, data_ub=None, data_lb=None, eps=0.0):
+    """首先调用incomplete verifer进行验证模型
+
+    Args:
+        model_ori (nn): 原始的神经网络
+        data (_type_): 待分类的数据 img
+        y (_type_): 数据的类别标识
+        data_ub (_type_, optional): . 数据的上界值
+        data_lb (_type_, optional): 数据的下界值. Defaults to None.
+        eps (float, optional): _description_. Defaults to 0.0.
+
+    Returns:
+        tuple:  verified_status, init_global_lb, saved_bounds, saved_slopes
+    """    
     norm = arguments.Config["specification"]["norm"]
     # LiRPA wrapper
-    num_outputs = arguments.Config["data"]["num_outputs"]
+    num_outputs = arguments.Config["data"]["num_outputs"] #=10
     if y is not None:
         labels = torch.tensor([y]).long()
         if num_outputs == 1:
@@ -136,7 +149,7 @@ def incomplete_verifier(model_ori, data, y, data_ub=None, data_lb=None, eps=0.0)
             c = torch.eye(num_outputs).type_as(data)[labels].unsqueeze(1) - torch.eye(num_outputs).type_as(data).unsqueeze(0)
             I = (~(labels.data.unsqueeze(1) == torch.arange(num_outputs).type_as(labels.data).unsqueeze(0)))
             # Remove spec to self.
-            c = (c[I].view(data.size(0), num_outputs - 1, num_outputs))
+            c = (c[I].view(data.size(0), num_outputs - 1, num_outputs)) #构造c向量，令c*y =  [y[true_class] - y[i] for i is not true_class]
     else:
         c = None
     model = LiRPAConvNet(model_ori, y, None, device=arguments.Config["general"]["device"],
@@ -146,14 +159,14 @@ def incomplete_verifier(model_ori, data, y, data_ub=None, data_lb=None, eps=0.0)
         data = data.cuda()
         data_lb, data_ub = data_lb.cuda(), data_ub.cuda()
 
-    ptb = PerturbationLpNorm(norm=norm, eps=eps, x_L=data_lb, x_U=data_ub)
-    x = BoundedTensor(data, ptb).to(data_lb.device)
+    ptb = PerturbationLpNorm(norm=norm, eps=eps, x_L=data_lb, x_U=data_ub) #构造一个扰动norm
+    x = BoundedTensor(data, ptb).to(data_lb.device) #输入数据的bound
     domain = torch.stack([data_lb.squeeze(0), data_ub.squeeze(0)], dim=-1)
     _, global_lb, _, _, _, mask, lA, lower_bounds, upper_bounds, pre_relu_indices, slope, history = model.build_the_model(
             domain, x, stop_criterion_func=stop_criterion_min(arguments.Config["bab"]["decision_thresh"]))
 
     if global_lb.min() >= arguments.Config["bab"]["decision_thresh"]:
-        print("verified with init bound!")
+        print("成功验证: verified with init bound!")
         return "safe-incomplete", None, None, None
 
     # Save the alpha variables during optimization. Here the batch size is 1.

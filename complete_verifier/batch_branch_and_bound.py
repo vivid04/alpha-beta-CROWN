@@ -19,7 +19,7 @@ from collections import defaultdict, Counter
 
 from auto_LiRPA.utils import stop_criterion_sum
 from branching_domains import pick_out_batch, add_domain_parallel, ReLUDomain, SortedList, DFS_SortedList, merge_domains_params
-from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB,choose_node_parallel_crown_random_hsc
+from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB,choose_node_parallel_crown_random_hsc,choose_node_parallel_crown_max_amb
 import arguments
 #from complete_verifier.branching_heuristics import choose_node_parallel_crown_random
 
@@ -67,9 +67,9 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
 
     domains_params = pick_out_batch(d, decision_thresh, batch=batch * (1 - dive_rate), device=net.x.device, DFS_percent=DFS_percent if DFS_enabled else 0)
     mask, lAs, orig_lbs, orig_ubs, slopes, betas, intermediate_betas, selected_domains = domains_params
-    #mask 指标了当前激活态是否是unfixedd/是否是ambiguous的，0：fixed,1:ambiguous
+    #mask 指示了当前激活态是否是unfixedd/是否是ambiguous的，0：fixed,1:ambiguous
     pickout_time = time.time() - pickout_time
-
+    #orig_lbs, orig_ubs神经元节点激活函数的输入范围
     if mask is not None:
         decision_time = time.time()
 
@@ -84,6 +84,9 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
             branching_decision = choose_node_parallel_FSB(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                             branching_candidates=branching_candidates, branching_reduceop=branching_reduceop,
                                             slopes=slopes, betas=betas, history=history)
+        elif branching_method == 'max_amb': #
+             branching_decision = choose_node_parallel_crown_max_amb(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+                                                            batch=batch, branching_reduceop=branching_reduceop)
         elif branching_method == 'kfsb':
             branching_decision = choose_node_parallel_kFSB(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                             branching_candidates=branching_candidates, branching_reduceop=branching_reduceop,

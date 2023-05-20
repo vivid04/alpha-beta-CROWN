@@ -42,5 +42,5 @@ solver:
 bab:
   timeout: 40 # timeout(in seconds) for verifying one image/property
   branching:
-    method: babsr #BABSR, kfsb FSB 
+    method: fsb #BABSR, kfsb FSB max_amb
     reduceop: max
