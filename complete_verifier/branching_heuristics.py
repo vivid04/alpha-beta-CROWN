@@ -218,7 +218,7 @@ def choose_node_parallel_crown(lower_bounds, upper_bounds, orig_mask, net, pre_r
         # Intercept
         intercept_temp = torch.clamp(ratio, max=0) #截距，最大为0，对应l[i][j]
         intercept_candidate = intercept_temp * intercept #  hat{v} *(-1)lu/(u-l)
-        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
+        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx]) #都是小于0
 
         # Bias
         input_node = layer.inputs[0]
@@ -248,9 +248,9 @@ def choose_node_parallel_crown(lower_bounds, upper_bounds, orig_mask, net, pre_r
             b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
 
         # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
-        b_temp = b_temp * ratio   # b_temp:b, ratio: hat{v}[k][j]
+        b_temp = b_temp * ratio   # b_temp:b, ratio: hat{v}[k][j]这里b_temp= b * v_hat[i][j]
         bias_candidate_1 = b_temp * (ratio_temp_0 - 1) #ratio_temp_0: slop
-        bias_candidate_2 = b_temp * ratio_temp_0
+        bias_candidate_2 = b_temp * ratio_temp_0        #ratio_temp_0对应了斜率(u)/(u-l)
         bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
 
         score_candidate = bias_candidate + intercept_candidate
@@ -297,6 +297,409 @@ def choose_node_parallel_crown(lower_bounds, upper_bounds, orig_mask, net, pre_r
 def choose_node_parallel_crown_max_amb(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
                                decision_threshold=0.001, batch=5, branching_reduceop='min'):
     """BaBSR branching stratety
+
+    Args:
+        lower_bounds (_type_): _description_
+        upper_bounds (_type_): _description_
+        orig_mask (_type_): _description_
+        net (_type_): _description_
+        pre_relu_indices (_type_): _description_
+        lAs (_type_): _description_
+        sparsest_layer (int, optional): _description_. Defaults to 0.
+        decision_threshold (float, optional): _description_. Defaults to 0.001.
+        batch (int, optional): _description_. Defaults to 5.
+        branching_reduceop (str, optional): _description_. Defaults to 'min'.
+
+    Returns:
+        _type_: _description_
+    """      
+    # decision=[]
+
+    # batch = min(batch, len(orig_mask[0]))
+    # for b in range(batch):
+    #     c = [torch.argmax(lower_bounds[i][b] * upper_bounds[i][b] *-1 *orig_mask[i][b] ).item() for i in range(0,len(lower_bounds)-3)]
+    #     #c = [torch.argmax(upper_bounds[i][b] * orig_mask[i][b] ).item() for i in range(1,len(lower_bounds)-2)]
+    #     decision.append([c.index(max(c)),max(c)])
+
+
+
+    # return decision
+
+
+    batch = min(batch, len(orig_mask[0]))
+    # Mask is 1 for unstable neurons. Otherwise it's 0.
+    mask = orig_mask
+    reduce_op = get_branching_op(branching_reduceop)
+
+    score = []
+    intercept_tb = []
+    relu_idx = -1
+
+    for layer in reversed(net.net.relus):
+        ratio = lAs[relu_idx] #存储了mu[][]
+        #返回RELU函数上界的斜率及截
+        ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
+                                                   upper_bounds[pre_relu_indices[relu_idx]])
+        # Intercept
+        intercept_temp = torch.clamp(ratio, max=0)
+        intercept_candidate = intercept_temp * ratio_temp_1 #这里是 intercept * v[i][j]
+        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
+
+        # Bias
+        input_node = layer.inputs[0]
+        assert isinstance(input_node, (BoundConv, BoundLinear, BoundBatchNormalization, BoundAdd))
+        if type(input_node) == BoundConv:
+            if len(input_node.inputs) > 2:
+                b_temp = input_node.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+            else:
+                b_temp = 0
+        elif type(input_node) == BoundLinear:
+            # TODO: consider if no bias in the BoundLinear layer
+            b_temp = input_node.inputs[-1].param.detach()
+        elif type(input_node) == BoundAdd:
+            b_temp = 0
+            # print(input_node.inputs)
+            for l in input_node.inputs:
+                if type(l) == BoundConv:
+                    if len(l.inputs) > 2:
+                        b_temp += l.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+                if type(l) == BoundBatchNormalization:
+                    b_temp += 0  # l.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1) # TODO: bias of BN need refine
+                if type(l) == BoundAdd:
+                    for ll in l.inputs:
+                        if type(ll) == BoundConv:
+                            b_temp += ll.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+        else:
+            b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
+
+        # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
+        b_temp = b_temp * ratio   #b_temp存储了bias*v[i][j]参数
+        bias_candidate_1 = b_temp * (ratio_temp_0 - 1)
+        bias_candidate_2 = b_temp * ratio_temp_0
+        bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
+
+        #score_candidate = bias_candidate + intercept_candidate
+        score_candidate = intercept_candidate
+        score.insert(0, (abs(score_candidate).view(batch, -1) * mask[relu_idx]).cpu())
+
+        relu_idx -= 1
+
+    decision = []
+    for b in range(batch):
+        new_score = [score[j][b] for j in range(len(score))]
+        max_info = [torch.max(i, 0) for i in new_score] #torch.max(tensor, dim)->  two output tensors (max, max_indices)输出最大值，同时给出最大值的索引
+        decision_layer = max_info.index( max(max_info) )#max_info是一个list[tuple(max_value, max_index)]
+        decision_index = max_info[decision_layer][1].item() #max_info[i]=(value, index)
+        decision.append([decision_layer, decision_index])
+        continue
+        if decision_layer != sparsest_layer and max_info[decision_layer][0].item() > decision_threshold:
+            decision.append([decision_layer, decision_index])
+        else:
+            min_info = [[i, torch.min(intercept_tb[i][b], 0)] for i in range(len(intercept_tb)) if
+                        torch.min(intercept_tb[i][b]) < -1e-4]
+            # import pdb; pdb.set_trace()
+            global Icp_score_counter
+            if len(min_info) != 0 and Icp_score_counter < 2:
+                intercept_layer = min_info[-1][0]
+                intercept_index = min_info[-1][1][1].item()
+                Icp_score_counter += 1
+                decision.append([intercept_layer, intercept_index])
+                if intercept_layer != 0:
+                    Icp_score_counter = 0
+                # else:
+                #     print('using first layer split')
+                # print('\tusing intercept score')
+            else:
+                print('\t using a random choice')
+                mask_item = [m[b] for m in mask]
+                for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
+                    if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
+                        decision.append([preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
+                        break
+                Icp_score_counter = 0
+
+    return decision
+@torch.no_grad()
+def choose_node_parallel_crown_rlm(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
+                               decision_threshold=0.001, batch=5, branching_reduceop='min'):
+    """BaBSR branching stratety
+
+    Args:
+        lower_bounds (_type_): _description_
+        upper_bounds (_type_): _description_
+        orig_mask (_type_): _description_
+        net (_type_): _description_
+        pre_relu_indices (_type_): _description_
+        lAs (_type_): _description_
+        sparsest_layer (int, optional): _description_. Defaults to 0.
+        decision_threshold (float, optional): _description_. Defaults to 0.001.
+        batch (int, optional): _description_. Defaults to 5.
+        branching_reduceop (str, optional): _description_. Defaults to 'min'.
+
+    Returns:
+        _type_: _description_
+    """      
+    # decision=[]
+
+    # batch = min(batch, len(orig_mask[0]))
+    # for b in range(batch):
+    #     c = [torch.argmax(lower_bounds[i][b] * upper_bounds[i][b] *-1 *orig_mask[i][b] ).item() for i in range(0,len(lower_bounds)-3)]
+    #     #c = [torch.argmax(upper_bounds[i][b] * orig_mask[i][b] ).item() for i in range(1,len(lower_bounds)-2)]
+    #     decision.append([c.index(max(c)),max(c)])
+
+
+
+    # return decision
+
+
+    batch = min(batch, len(orig_mask[0]))
+    # Mask is 1 for unstable neurons. Otherwise it's 0.
+    mask = orig_mask
+    reduce_op = get_branching_op(branching_reduceop)
+
+    score = []
+    intercept_tb = []
+    relu_idx = -1
+
+    for layer in reversed(net.net.relus):
+        ratio = lAs[relu_idx] #存储了mu[][]
+        #返回RELU函数上界的斜率及截
+        ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
+                                                   upper_bounds[pre_relu_indices[relu_idx]])
+        # Intercept
+        intercept_temp = torch.clamp(ratio, max=0) #[ration]+取了负值
+        intercept_candidate = intercept_temp * ratio_temp_1 #这里是 intercept * v[i][j] 均为负值
+        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
+
+        # Bias
+        input_node = layer.inputs[0]
+        assert isinstance(input_node, (BoundConv, BoundLinear, BoundBatchNormalization, BoundAdd))
+        if type(input_node) == BoundConv:
+            if len(input_node.inputs) > 2:
+                b_temp = input_node.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+            else:
+                b_temp = 0
+        elif type(input_node) == BoundLinear:
+            # TODO: consider if no bias in the BoundLinear layer
+            b_temp = input_node.inputs[-1].param.detach()
+        elif type(input_node) == BoundAdd:
+            b_temp = 0
+            # print(input_node.inputs)
+            for l in input_node.inputs:
+                if type(l) == BoundConv:
+                    if len(l.inputs) > 2:
+                        b_temp += l.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+                if type(l) == BoundBatchNormalization:
+                    b_temp += 0  # l.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1) # TODO: bias of BN need refine
+                if type(l) == BoundAdd:
+                    for ll in l.inputs:
+                        if type(ll) == BoundConv:
+                            b_temp += ll.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+        else:
+            b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
+
+        # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
+        b_temp = b_temp * ratio   #b_temp 存储了bias*v[i][j]参数
+        #bias_candidate_1 = b_temp * (ratio_temp_0 - 1) #如果为负值则用，否则设置0
+        #bias_candidate_2 = b_temp * ratio_temp_0
+        #bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
+        #score_candidate = bias_candidate + intercept_candidate
+        bias_candidate_1 = torch.clamp(b_temp * (ratio_temp_0 - 1), max = 0 ) #如果为负值则用，否则设置0
+        bias_candidate_2 = torch.clamp(b_temp * ratio_temp_0, max = 0)
+        
+        cand_value = torch.clamp(b_temp,max=0)
+        #bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
+        alpha=0.98
+       # score_candidate =bias_candidate_2+ bias_candidate_1 + intercept_candidate
+       # score_candidate = intercept_candidate * alpha +  (bias_candidate_1 + bias_candidate_2) * (1-alpha)
+        score_candidate = intercept_candidate * alpha +  cand_value * (1-alpha)
+        #score_candidate = intercept_candidate
+        score.insert(0, (abs(score_candidate).view(batch, -1) * mask[relu_idx]).cpu())
+
+        relu_idx -= 1
+
+    decision = []
+    for b in range(batch):
+        new_score = [score[j][b] for j in range(len(score))]
+        max_info = [torch.max(i, 0) for i in new_score] #torch.max(tensor, dim)->  two output tensors (max, max_indices)输出最大值，同时给出最大值的索引
+        decision_layer = max_info.index( max(max_info) )#max_info是一个list[tuple(max_value, max_index)]
+        decision_index = max_info[decision_layer][1].item() #max_info[i]=(value, index)
+        decision.append([decision_layer, decision_index])
+        continue
+        if decision_layer != sparsest_layer and max_info[decision_layer][0].item() > decision_threshold:
+            decision.append([decision_layer, decision_index])
+        else:
+            min_info = [[i, torch.min(intercept_tb[i][b], 0)] for i in range(len(intercept_tb)) if
+                        torch.min(intercept_tb[i][b]) < -1e-4]
+            # import pdb; pdb.set_trace()
+            global Icp_score_counter
+            if len(min_info) != 0 and Icp_score_counter < 2:
+                intercept_layer = min_info[-1][0]
+                intercept_index = min_info[-1][1][1].item()
+                Icp_score_counter += 1
+                decision.append([intercept_layer, intercept_index])
+                if intercept_layer != 0:
+                    Icp_score_counter = 0
+                # else:
+                #     print('using first layer split')
+                # print('\tusing intercept score')
+            else:
+                print('\t using a random choice')
+                mask_item = [m[b] for m in mask]
+                for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
+                    if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
+                        decision.append([preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
+                        break
+                Icp_score_counter = 0
+
+    return decision
+@torch.no_grad()
+def choose_node_parallel_crown_rlm_test(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
+                               decision_threshold=0.001, batch=5, branching_reduceop='min'):
+    """BaBSR branching stratety
+
+    Args:
+        lower_bounds (_type_): _description_
+        upper_bounds (_type_): _description_
+        orig_mask (_type_): _description_
+        net (_type_): _description_
+        pre_relu_indices (_type_): _description_
+        lAs (_type_): _description_
+        sparsest_layer (int, optional): _description_. Defaults to 0.
+        decision_threshold (float, optional): _description_. Defaults to 0.001.
+        batch (int, optional): _description_. Defaults to 5.
+        branching_reduceop (str, optional): _description_. Defaults to 'min'.
+
+    Returns:
+        _type_: _description_
+    """      
+    # decision=[]
+
+    # batch = min(batch, len(orig_mask[0]))
+    # for b in range(batch):
+    #     c = [torch.argmax(lower_bounds[i][b] * upper_bounds[i][b] *-1 *orig_mask[i][b] ).item() for i in range(0,len(lower_bounds)-3)]
+    #     #c = [torch.argmax(upper_bounds[i][b] * orig_mask[i][b] ).item() for i in range(1,len(lower_bounds)-2)]
+    #     decision.append([c.index(max(c)),max(c)])
+
+
+
+    # return decision
+
+
+    batch = min(batch, len(orig_mask[0]))
+    # Mask is 1 for unstable neurons. Otherwise it's 0.
+    mask = orig_mask
+    reduce_op = get_branching_op(branching_reduceop)
+
+    score = []
+    intercept_tb = []
+    relu_idx = -1
+
+    for layer in reversed(net.net.relus):
+        ratio = lAs[relu_idx] #存储了mu[][]
+        #返回RELU函数上界的斜率，及截距
+        ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
+                                                   upper_bounds[pre_relu_indices[relu_idx]])
+        # Intercept
+        intercept_temp = torch.clamp(ratio, max=0) #[ration]+取了负值
+        intercept_candidate = intercept_temp * ratio_temp_1 #这里是 intercept * v[i][j] 均为负值
+        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
+
+        # Bias
+        input_node = layer.inputs[0]
+        assert isinstance(input_node, (BoundConv, BoundLinear, BoundBatchNormalization, BoundAdd))
+        if type(input_node) == BoundConv:
+            if len(input_node.inputs) > 2:
+                b_temp = input_node.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+            else:
+                b_temp = 0
+        elif type(input_node) == BoundLinear:
+            # TODO: consider if no bias in the BoundLinear layer
+            b_temp = input_node.inputs[-1].param.detach()
+        elif type(input_node) == BoundAdd:
+            b_temp = 0
+            # print(input_node.inputs)
+            for l in input_node.inputs:
+                if type(l) == BoundConv:
+                    if len(l.inputs) > 2:
+                        b_temp += l.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+                if type(l) == BoundBatchNormalization:
+                    b_temp += 0  # l.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1) # TODO: bias of BN need refine
+                if type(l) == BoundAdd:
+                    for ll in l.inputs:
+                        if type(ll) == BoundConv:
+                            b_temp += ll.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+        else:
+            b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
+        #b_temp存储了mu[i][j]
+        # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
+        b_temp = b_temp * ratio   #更新后b_temp =u/ (u-l) * mu[i][j]->v[i][j] 存储了bias*v[i][j]参数, ratio是斜率，是正值，
+        #bias_candidate_1 = b_temp * (ratio_temp_0 - 1) #如果为负值则用，否则设置0
+        #bias_candidate_2 = b_temp * ratio_temp_0
+        #bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
+        #score_candidate = bias_candidate + intercept_candidate
+        bias_candidate_1 = torch.clamp(b_temp * (ratio_temp_0 - 1), max = 0 ) #如果为负值则用，否则设置0
+        bias_candidate_2 = torch.clamp(b_temp * ratio_temp_0, max = 0) #均取负值，如为负值，则表示有提升，否则没作用
+        #计算mu[i][j] * b[i][j] 
+        #cand_value = torch.clamp(b_temp,max=0)
+        cand_value = bias_candidate_1 + bias_candidate_2
+        #bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2) #max(v*b,(v-1)*b)
+        alpha=0.999
+       # score_candidate =bias_candidate_2+ bias_candidate_1 + intercept_candidate
+       # score_candidate = intercept_candidate * alpha +  (bias_candidate_1 + bias_candidate_2) * (1-alpha)
+        score_candidate = intercept_candidate * alpha +  cand_value * (1-alpha) #都是负值
+        #score_candidate = intercept_candidate
+        score.insert(0, (abs(score_candidate).view(batch, -1) * mask[relu_idx]).cpu())
+
+        relu_idx -= 1
+
+    decision = []
+    for b in range(batch):
+        new_score = [score[j][b] for j in range(len(score))]  #分批次处理，先处理第1批
+        max_info = [torch.max(i, 0) for i in new_score]        #torch.max(tensor, dim)->  two output tensors (max, max_indices)输出最大值，同时给出最大值的索引
+        #这里应该排个序，后面的layer占优先级高
+        #for decision_layer in range(len(max_info)-1,0,-1):
+        #    if max_info[decision_layer][0]>0:
+        #        #decision_layer = max_info.index( max(max_info))       #max_info是一个list[tuple(max_value, max_index)],存储了每层最大值，及对应的node的下标
+        #        decision_index = max_info[decision_layer][1].item()    #max_info[i]=(value, index)
+        #        decision.append([decision_layer, decision_index])
+        #        break
+        decision_layer = max_info.index( max(max_info))       #max_info是一个list[tuple(max_value, max_index)],存储了每层最大值，及对应的node的下标
+        decision_index = max_info[decision_layer][1].item()    #max_info[i]=(value, index)
+        decision.append([decision_layer, decision_index])
+        continue
+        if decision_layer != sparsest_layer and max_info[decision_layer][0].item() > decision_threshold:
+            decision.append([decision_layer, decision_index])
+        else:
+            min_info = [[i, torch.min(intercept_tb[i][b], 0)] for i in range(len(intercept_tb)) if
+                        torch.min(intercept_tb[i][b]) < -1e-4]
+            # import pdb; pdb.set_trace()
+            global Icp_score_counter
+            if len(min_info) != 0 and Icp_score_counter < 2:
+                intercept_layer = min_info[-1][0]
+                intercept_index = min_info[-1][1][1].item()
+                Icp_score_counter += 1
+                decision.append([intercept_layer, intercept_index])
+                if intercept_layer != 0:
+                    Icp_score_counter = 0
+                # else:
+                #     print('using first layer split')
+                # print('\tusing intercept score')
+            else:
+                print('\t using a random choice')
+                mask_item = [m[b] for m in mask]
+                for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
+                    if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
+                        decision.append([preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
+                        break
+                Icp_score_counter = 0
+
+    return decision
+
+@torch.no_grad()
+def choose_node_parallel_crown_random(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
+                               decision_threshold=0.001, batch=5, branching_reduceop='min'):
+    """random branching stratety
 
     Args:
         lower_bounds (_type_): _description_
@@ -385,12 +788,21 @@ def choose_node_parallel_crown_max_amb(lower_bounds, upper_bounds, orig_mask, ne
         relu_idx -= 1
 
     decision = []
-    for b in range(batch):
-        new_score = [score[j][b] for j in range(len(score))]
-        max_info = [torch.max(i, 0) for i in new_score] #torch.max(tensor, dim)->  two output tensors (max, max_indices)输出最大值，同时给出最大值的索引
-        decision_layer = max_info.index( max(max_info) )#max_info是一个list[tuple(max_value, max_index)]
-        decision_index = max_info[decision_layer][1].item() #max_info[i]=(value, index)
-        decision.append([decision_layer, decision_index])
+    for b in range(batch):#每批次后加
+        mask_item = [m[b] for m in mask]
+        for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
+               nonzero_n = len(mask_item[preferred_layer].nonzero(as_tuple=False)) #不确定态神经元数据
+               if nonzero_n != 0: 
+                    idx = np.random.choice(nonzero_n,1)[0]
+                    decision_index = mask_item[preferred_layer].nonzero(as_tuple=False)[idx].item()
+                    print("decision_index", decision_index)
+                    decision.append([preferred_layer, decision_index])
+                    break
+       # new_score = [score[j][b] for j in range(len(score))]
+       # max_info = [torch.max(i, 0) for i in new_score] #torch.max(tensor, dim)->  two output tensors (max, max_indices)输出最大值，同时给出最大值的索引
+       # decision_layer = max_info.index( max(max_info) )#max_info是一个list[tuple(max_value, max_index)]
+       # decision_index = max_info[decision_layer][1].item() #max_info[i]=(value, index)
+       # decision.append([decision_layer, decision_index])
         continue
         if decision_layer != sparsest_layer and max_info[decision_layer][0].item() > decision_threshold:
             decision.append([decision_layer, decision_index])
@@ -400,118 +812,6 @@ def choose_node_parallel_crown_max_amb(lower_bounds, upper_bounds, orig_mask, ne
             # import pdb; pdb.set_trace()
             global Icp_score_counter
             if len(min_info) != 0 and Icp_score_counter < 2:
-                intercept_layer = min_info[-1][0]
-                intercept_index = min_info[-1][1][1].item()
-                Icp_score_counter += 1
-                decision.append([intercept_layer, intercept_index])
-                if intercept_layer != 0:
-                    Icp_score_counter = 0
-                # else:
-                #     print('using first layer split')
-                # print('\tusing intercept score')
-            else:
-                print('\t using a random choice')
-                mask_item = [m[b] for m in mask]
-                for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
-                    if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
-                        decision.append([preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
-                        break
-                Icp_score_counter = 0
-
-    return decision
-
-@torch.no_grad()
-def choose_node_parallel_crown_random_hsc(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, sparsest_layer=0,
-                               decision_threshold=0.001, batch=5, branching_reduceop='min'):
-    """BaBSR branching stratety
-
-    Args:
-        lower_bounds (_type_): _description_
-        upper_bounds (_type_): _description_
-        orig_mask (_type_): _description_
-        net (_type_): _description_
-        pre_relu_indices (_type_): _description_
-        lAs (_type_): _description_
-        sparsest_layer (int, optional): _description_. Defaults to 0.
-        decision_threshold (float, optional): _description_. Defaults to 0.001.
-        batch (int, optional): _description_. Defaults to 5.
-        branching_reduceop (str, optional): _description_. Defaults to 'min'.
-
-    Returns:
-        _type_: _description_
-    """                               
-    batch = min(batch, len(orig_mask[0]))
-    # Mask is 1 for unstable neurons. Otherwise it's 0.
-    mask = orig_mask
-    reduce_op = get_branching_op(branching_reduceop)
-
-    score = []
-    intercept_tb = []
-    relu_idx = -1
-
-    for layer in reversed(net.net.relus):
-        ratio = lAs[relu_idx]
-        ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
-                                                   upper_bounds[pre_relu_indices[relu_idx]])
-        # Intercept
-        intercept_temp = torch.clamp(ratio, max=0)
-        intercept_candidate = intercept_temp * ratio_temp_1
-        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
-
-        # Bias
-        input_node = layer.inputs[0]
-        assert isinstance(input_node, (BoundConv, BoundLinear, BoundBatchNormalization, BoundAdd))
-        if type(input_node) == BoundConv:
-            if len(input_node.inputs) > 2:
-                b_temp = input_node.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
-            else:
-                b_temp = 0
-        elif type(input_node) == BoundLinear:
-            # TODO: consider if no bias in the BoundLinear layer
-            b_temp = input_node.inputs[-1].param.detach()
-        elif type(input_node) == BoundAdd:
-            b_temp = 0
-            # print(input_node.inputs)
-            for l in input_node.inputs:
-                if type(l) == BoundConv:
-                    if len(l.inputs) > 2:
-                        b_temp += l.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
-                if type(l) == BoundBatchNormalization:
-                    b_temp += 0  # l.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1) # TODO: bias of BN need refine
-                if type(l) == BoundAdd:
-                    for ll in l.inputs:
-                        if type(ll) == BoundConv:
-                            b_temp += ll.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
-        else:
-            b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
-
-        # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
-        b_temp = b_temp * ratio
-        bias_candidate_1 = b_temp * (ratio_temp_0 - 1)
-        bias_candidate_2 = b_temp * ratio_temp_0
-        bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2)
-
-        score_candidate = bias_candidate + intercept_candidate
-        score.insert(0, (abs(score_candidate).view(batch, -1) * mask[relu_idx]).cpu())
-
-        relu_idx -= 1
-
-    decision = []
-    for b in range(batch):
-        new_score = [score[j][b] for j in range(len(score))]
-        max_info = [torch.max(i, 0) for i in new_score]
-        decision_layer = max_info.index(max(max_info))
-        decision_index = max_info[decision_layer][1].item()
-
-        if decision_layer != sparsest_layer and max_info[decision_layer][0].item() > decision_threshold:
-            decision.append([decision_layer, decision_index])
-        else:
-            min_info = [[i, torch.min(intercept_tb[i][b], 0)] for i in range(len(intercept_tb)) if
-                        torch.min(intercept_tb[i][b]) < -1e-4]
-            # import pdb; pdb.set_trace()
-            global Icp_score_counter
-            #if len(min_info) != 0 and Icp_score_counter < 2:
-            if False:
                 intercept_layer = min_info[-1][0]
                 intercept_index = min_info[-1][1][1].item()
                 Icp_score_counter += 1
@@ -551,9 +851,9 @@ def choose_node_parallel_FSB(lower_bounds, upper_bounds, orig_mask, net, pre_rel
         ratio = lAs[relu_idx]
         ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
                                                    upper_bounds[pre_relu_indices[relu_idx]])
-        # Intercept
-        intercept_temp = torch.clamp(ratio, max=0)
-        intercept_candidate = intercept_temp * ratio_temp_1
+        # intercept * mu[i][j]
+        intercept_temp = torch.clamp(ratio, max=0)#都是负值 [-inf, 0]
+        intercept_candidate = intercept_temp * ratio_temp_1 #正值  ratio_temp_1
         intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx])
 
         # Bias
@@ -589,6 +889,164 @@ def choose_node_parallel_FSB(lower_bounds, upper_bounds, orig_mask, net, pre_rel
         bias_candidate_2 = b_temp * ratio_temp_0
         bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2)  # max for babsr by default
         score_candidate = bias_candidate + intercept_candidate
+        score.insert(0, abs(score_candidate).view(batch, -1) * mask[relu_idx])
+        #mask[relu_idx] * 
+        relu_idx -= 1
+
+    final_decision = []
+    decision_tmp = {}
+    tmp_ret = {}
+    skip_layers = [0]
+
+    # real batch = batch * 2, since we have two kinds of scores
+    lbs = [torch.cat([i, i]) for i in lower_bounds]
+    ups = [torch.cat([i, i]) for i in upper_bounds]
+    if isinstance(slopes[0], dict):
+        # per neuron slope.
+        sps = slopes + slopes
+    else:
+        sps = [torch.cat([i, i]) for i in slopes]
+    if use_beta:
+        bs = [torch.cat([i, i]) for i in betas]
+        history += history
+
+    set_slope = True  # We only set the slope once.
+    for i in range(1, len(score)):
+        if (score[i].max(1).values <= 1e-4).all() and (intercept_tb[i].min(1).values >= -1e-4).all():
+            print('{}th layer has no valid scores'.format(i))
+            skip_layers.append(i)
+            continue
+
+        score_idx = torch.topk(score[i], topk)
+        score_idx_indices = score_idx.indices.cpu()
+        itb_idx = torch.topk(intercept_tb[i], topk, largest=False)
+        itb_idx_indices = itb_idx.indices.cpu()
+
+        k_ret = torch.empty(size=(topk, batch*2), device=lower_bounds[0].device, requires_grad=False)
+        k_decision = []
+        for k in range(topk):
+            decision_index = score_idx_indices[:, k]
+            decision_max_ = [[i, j.item()] for j in decision_index]  # add decision_index with layer's idx
+            decision_index = itb_idx_indices[:, k]
+            decision_min_ = [[i, j.item()] for j in decision_index]
+
+            k_decision.append(decision_max_ + decision_min_)
+
+            # only save the best lower bounds of the two splits
+            if use_beta:
+                k_ret_lbs = net.update_bounds_parallel(lbs, ups, k_decision[-1], sps if set_slope else [], early_stop=False, betas=bs,
+                                                       layer_set_bound=True, shortcut=True, history=history)
+            else:
+                k_ret_lbs = net.update_bounds_parallel(lbs, ups, k_decision[-1], sps if set_slope else [], early_stop=False, beta=False,
+                                                       layer_set_bound=True, shortcut=True)
+            # No need to set slope next time; we do not optimize the slopes.
+            set_slope = False
+            # print(f'layer {i} k {k} decision {k_decision[-1]} bounds {k_ret_lbs.squeeze(-1).cpu()}')
+
+            mask_score = (score_idx.values[:, k] <= 1e-4).float()  # build mask indicates invalid scores (stable neurons), batch wise, 1: invalid
+            mask_itb = (itb_idx.values[:, k] >= -1e-4).float()
+            # make the invalid lower bounds worse than normal lower bounds by minus 999999
+            # we only consider the best lower bound across two splits by using min(0)
+            k_ret[k] = reduce_op((k_ret_lbs.view(-1) - torch.cat([mask_score, mask_itb]).repeat(2) * 999999).reshape(2, -1), dim=0).values
+
+        i_idx = k_ret.max(0)  # compare across topK
+        tmp_ret[i] = i_idx.values
+        decision_tmp[i] = [k_decision[i_idx.indices[ii]][ii] for ii in range(batch*2)]
+
+    if len(tmp_ret) > 0:
+        max_ret = torch.max(torch.stack([i for i in tmp_ret.values()]), dim=0)  # compare across layers
+        rets, decision_layers = max_ret.values.cpu().numpy(), max_ret.indices.cpu().numpy()  # first batch: score; second batch: intercept_tb.
+
+        # add index number for the skipped layers
+        # for _, g in groupby(enumerate(skip_layers), lambda ix: ix[0] - ix[1]):
+        #     decision_layers[decision_layers >= list(g)[-1][-1]] += 1
+        for s in skip_layers:
+            decision_layers[decision_layers >= s] += 1
+
+        for b in range(batch):
+            if max([i[b].max() for i in score]) > 1e-4 and min([i[b].min() for i in intercept_tb]) < -1e-4 \
+                    and max(rets[b], rets[b + batch]) > -10000:  # make sure this potential split is valid
+                if rets[b] > rets[b+batch]:  # score > intercept_tb
+                    final_decision.append(decision_tmp[decision_layers[b].item()][b])
+                else:
+                    final_decision.append(decision_tmp[decision_layers[b+batch].item()][b+batch])
+            else:
+                # print('\t using a random choice')
+                mask_item = [m[b] for m in mask]
+                for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):
+                    if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
+                        final_decision.append([preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
+                        break
+    else:
+        # all layers are split or has no improvement
+        for b in range(batch):
+            # print('\t using a random choice')
+            mask_item = [m[b] for m in mask]
+            # for preferred_layer in np.random.choice(len(pre_relu_indices), len(pre_relu_indices), replace=False):  # random
+            for preferred_layer in reversed(range(len(pre_relu_indices))):  # from last layer to first layer
+                if len(mask_item[preferred_layer].nonzero(as_tuple=False)) != 0:
+                    final_decision.append(
+                        [preferred_layer, mask_item[preferred_layer].nonzero(as_tuple=False)[0].item()])
+                    break
+
+    return final_decision
+@torch.no_grad()
+def choose_node_parallel_FSB_amb(lower_bounds, upper_bounds, orig_mask, net, pre_relu_indices, lAs, branching_candidates=5, branching_reduceop='min', slopes=None,
+                             betas=None, history=None, use_beta=False):
+
+    batch = len(orig_mask[0])
+    # Mask is 1 for unstable neurons. Otherwise it's 0.
+    mask = orig_mask
+    reduce_op = get_branching_op(branching_reduceop)
+    topk = branching_candidates
+
+    score = []
+    intercept_tb = []
+    relu_idx = -1
+
+    for layer in reversed(net.net.relus):
+        ratio = lAs[relu_idx]
+        #slop, interceopt
+        ratio_temp_0, ratio_temp_1 = compute_ratio(lower_bounds[pre_relu_indices[relu_idx]],
+                                                   upper_bounds[pre_relu_indices[relu_idx]])
+        # Intercept
+        intercept_temp = torch.clamp(ratio, max=0) #\mu[i][j]
+        intercept_candidate = intercept_temp * ratio_temp_1 
+        intercept_tb.insert(0, intercept_candidate.view(batch, -1) * mask[relu_idx]) #backup t score
+
+        # Bias
+        input_node = layer.inputs[0]
+        assert isinstance(input_node, (BoundConv, BoundLinear, BoundBatchNormalization, BoundAdd))
+        if type(input_node) == BoundConv:
+            if len(input_node.inputs) > 2:
+                b_temp = input_node.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+            else:
+                b_temp = 0
+        elif type(input_node) == BoundLinear:
+            # TODO: consider if no bias in the BoundLinear layer
+            b_temp = input_node.inputs[-1].param.detach()
+        elif type(input_node) == BoundAdd:
+            b_temp = 0
+            # print(input_node.inputs)
+            for l in input_node.inputs:
+                if type(l) == BoundConv:
+                    if len(l.inputs) > 2:
+                        b_temp += l.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+                if type(l) == BoundBatchNormalization:
+                    b_temp += 0  # l.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1) # TODO
+                if type(l) == BoundAdd:
+                    for ll in l.inputs:
+                        if type(ll) == BoundConv:
+                            b_temp += ll.inputs[-1].param.detach().unsqueeze(-1).unsqueeze(-1)
+        else:
+            b_temp = input_node.inputs[-3].param.detach().unsqueeze(-1).unsqueeze(-1)  # for BN, bias is the -3th inputs
+
+        # print(b_temp.shape, ratio_temp_0.shape, ratio.shape)
+        b_temp = b_temp * ratio
+        bias_candidate_1 = b_temp * (ratio_temp_0 - 1)
+        bias_candidate_2 = b_temp * ratio_temp_0
+        bias_candidate = reduce_op(bias_candidate_1, bias_candidate_2)  # max for babsr by default
+        score_candidate = bias_candidate + intercept_candidate #score 
         score.insert(0, abs(score_candidate).view(batch, -1) * mask[relu_idx])
 
         relu_idx -= 1

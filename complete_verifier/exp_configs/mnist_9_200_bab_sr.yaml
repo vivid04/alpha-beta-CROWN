@@ -1,0 +1,46 @@
+general:
+  device: cuda
+  seed: 100
+  conv_mode: patches
+  deterministic: false
+  double_fp: false
+  loss_reduction_func: sum
+  record_bounds: false
+  mode: verified-acc #使用bab
+  complete_verifier: bab
+  enable_incomplete_verification: false #not true
+  get_crown_verified_acc: true #not used
+
+model:
+  name: mnist_9_200
+  path: models/eran/mnist_9_200_nat.pth
+data:
+  dataset: MNIST_ERAN #unnormal
+  std: [1.0]
+  mean: [0.0]
+  start: 0
+  end: 100
+specification:
+  epsilon: 0.015
+attack:
+  pgd_order: skip
+solver:
+  beta-crown:
+    batch_size: 1
+    lr_alpha: 0.01
+    lr_beta: 0.05
+    lr_decay: 0.98
+    optimizer: adam
+    iteration: 5
+    beta: true
+    beta_warmup: true
+  alpha-crown:
+    lr_alpha: 0.1
+    iteration: 5 #default 100
+    share_slopes: false
+    no_joint_opt: false
+bab:
+  timeout: 40 # timeout(in seconds) for verifying one image/property
+  branching:
+    method: babsr #BABSR, kfsb FSB max_amb
+    reduceop: max

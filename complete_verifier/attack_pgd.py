@@ -76,10 +76,9 @@ def attack_pgd(model, X, y, epsilon, alpha, attack_iters, num_restarts,
     """基于梯度下降法的攻击
 
     Args:
-        model (_type_): _description_
-        X (_type_): _description_
-        y (_type_): _description_
-        epsilon (_type_): _description_
+        model (torch.nn.Module): PyTorch module under attack.
+        X (torch.tensor): Input image (x_0).
+        y (int, optional): Groundtruth label.
         alpha (_type_): _description_
         attack_iters (_type_): _description_
         num_restarts (_type_): _description_
@@ -451,6 +450,7 @@ def pgd_attack(dataset, model, x, max_eps, data_min, data_max, vnnlib=None, y=No
     Returns:
         success (bool): True if attack is successful. Otherwise False.
         attack_images (torch.tensor): last adversarial examples so far, may not be a real adversarial example if attack failed
+        attack_margin(float)
     """
     assert arguments.Config["specification"]["norm"] == np.inf, print('We only support Linf-norm attack.')
     if dataset in ["MNIST", "CIFAR", "UNKNOWN"]:  # FIXME (01/11/2022): Make the attack function generic, not for the two datasets only!

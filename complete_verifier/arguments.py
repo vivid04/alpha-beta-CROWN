@@ -118,7 +118,7 @@ class ConfigHandler:
 
         h = ["bab", "branching"]
         #sb: smart branching
-        self.add_argument("--branching_method", default="kfsb", choices=["babsr", "fsb", "kfsb", "sb"],
+        self.add_argument("--branching_method", default="kfsb", choices=["babsr", "fsb", "kfsb", "sb","rlm","random"],
          help='Branching heuristic. babsr is fast but less accurate; fsb is slow but most accurate; kfsb is usualy a balance.', hierarchy=h + ["method"])
         self.add_argument("--branching_candidates", type=int, default=3, help='Number of candidates to consider when using fsb or kfsb. More leads to slower but better branching.', hierarchy=h + ["candidates"])
         self.add_argument("--branching_reduceop", choices=["min", "max", "mean", "auto"], default="min", help='Reduction operation to compute branching scores from two sides of a branch (min or max). max can work better on some models.', hierarchy=h + ["reduceop"])

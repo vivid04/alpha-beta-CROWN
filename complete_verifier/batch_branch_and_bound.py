@@ -19,7 +19,9 @@ from collections import defaultdict, Counter
 
 from auto_LiRPA.utils import stop_criterion_sum
 from branching_domains import pick_out_batch, add_domain_parallel, ReLUDomain, SortedList, DFS_SortedList, merge_domains_params
-from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB,choose_node_parallel_crown_random_hsc,choose_node_parallel_crown_max_amb
+from branching_heuristics import choose_node_parallel_FSB, choose_node_parallel_crown, choose_node_parallel_kFSB,\
+choose_node_parallel_crown_random,choose_node_parallel_crown_max_amb,choose_node_parallel_crown_rlm,\
+choose_node_parallel_crown_rlm_test
 import arguments
 #from complete_verifier.branching_heuristics import choose_node_parallel_crown_random
 
@@ -87,12 +89,19 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
         elif branching_method == 'max_amb': #
              branching_decision = choose_node_parallel_crown_max_amb(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                                             batch=batch, branching_reduceop=branching_reduceop)
+        elif branching_method == 'rlm': #
+             branching_decision = choose_node_parallel_crown_rlm(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+                                                            batch=batch, branching_reduceop=branching_reduceop)   
+        elif branching_method == 'rlm_test': #
+             branching_decision = choose_node_parallel_crown_rlm_test(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+                                                            batch=batch, branching_reduceop=branching_reduceop)   
+                                                                                                          
         elif branching_method == 'kfsb':
             branching_decision = choose_node_parallel_kFSB(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                             branching_candidates=branching_candidates, branching_reduceop=branching_reduceop,
                                             slopes=slopes, betas=betas, history=history)
-        elif branching_method == 'sb':
-              branching_decision = choose_node_parallel_crown_random_hsc(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
+        elif branching_method == 'random':
+              branching_decision = choose_node_parallel_crown_random(orig_lbs, orig_ubs, mask, net, pre_relu_indices, lAs,
                                                             batch=batch, branching_reduceop=branching_reduceop)
         else:#"sb"未实现
             print("sb not implemented")
@@ -183,6 +192,24 @@ def batch_verification(d, net, batch, pre_relu_indices, growth_rate, layer_set_b
 
 def relu_bab_parallel(net, domain, x, use_neuron_set_strategy=False, refined_lower_bounds=None,
                       refined_upper_bounds=None, reference_slopes=None, attack_images=None):
+    """BAB 验证主函数
+
+    Args:
+        net (_type_): NN model
+        domain (_type_): 子域的集
+        x (_type_): image data
+        use_neuron_set_strategy (bool, optional): _description_. Defaults to False.
+        refined_lower_bounds (_type_, optional): _description_. Defaults to None.
+        refined_upper_bounds (_type_, optional): _description_. Defaults to None.
+        reference_slopes (_type_, optional): _description_. Defaults to None.
+        attack_images (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        global_lb (float): lower bound of minimum
+        global_ub (float): upper bound of minimum
+        glb_record (list): [time,global_lb],返回用时及计算出的下界值
+        Visited: _description_
+    """                      
     start = time.time()
     # All supported arguments.
     global Visited, Flag_first_split, all_node_split, DFS_enabled
@@ -286,7 +313,7 @@ def relu_bab_parallel(net, domain, x, use_neuron_set_strategy=False, refined_low
                 # Terminate MIP if it has been started.
                 del domains
                 return global_lb, global_ub, glb_record, Visited
-
+        #已经用时超过了时间
         if time.time() - start > timeout:
             print('Time out!!!!!!!!')
             del domains

@@ -178,6 +178,9 @@ def main():
         ValueError: _description_
         ValueError: _description_
     """    
+
+    run_timeout = 3600 *2 # 2* 1hour
+    time_flag = time.strftime('%y%m%d_%H%M%S')
     #f-string用法： f-string，亦称为格式化字符串常量（formatted string literals）
     print(f'Experiments at {time.ctime()} on {socket.gethostname()}')
     st_time = time.time()
@@ -261,11 +264,30 @@ def main():
     bnb_ids = bnb_ids[arguments.Config["data"]["start"]:  arguments.Config["data"]["end"]]
     print('Task length:', len(bnb_ids))
     #记录保存
-    save_path = 'Verified_ret_[{}]_start={}_end={}_iter={}_b={}_timeout={}_branching={}-{}-{}_lra-init={}_lra={}_lrb={}_PGD={}_rtim={}.npy'. \
-        format(arguments.Config['model']['name'], arguments.Config["data"]["start"],  arguments.Config["data"]["end"], arguments.Config["solver"]["beta-crown"]["iteration"], arguments.Config["solver"]["beta-crown"]["batch_size"],
-               arguments.Config["bab"]["timeout"], arguments.Config["bab"]["branching"]["method"], arguments.Config["bab"]["branching"]["reduceop"],
-               arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"],    time.strftime('%Y-%m-%d_%H%M%S'))
-    print(f'saving results to {save_path}')
+    common_save_path_suffix = '[{}]_start={}_end={}_norm={}_bIt={}_bat={}_timeout={}_branching={}_rdop={}_cndN={}_Alra={}_Blra={}_Blrb={}_PGD={}_T={}.npy'. \
+        format(arguments.Config['model']['name'], 
+        arguments.Config["data"]["start"], 
+        arguments.Config["data"]["end"],
+        arguments.Config["specification"]["epsilon"],
+        arguments.Config["solver"]["beta-crown"]["iteration"], 
+        arguments.Config["solver"]["beta-crown"]["batch_size"],
+        arguments.Config["bab"]["timeout"], 
+        arguments.Config["bab"]["branching"]["method"], 
+        arguments.Config["bab"]["branching"]["reduceop"],
+        arguments.Config["bab"]["branching"]["candidates"],
+        arguments.Config["solver"]["alpha-crown"]["lr_alpha"],
+        arguments.Config["solver"]["beta-crown"]["lr_alpha"],
+        arguments.Config["solver"]["beta-crown"]["lr_beta"],
+        arguments.Config["attack"]["pgd_order"],
+        time_flag )
+
+             
+    # save_path = 'Verified_ret_[{}]_start={}_end={}_iter={}_b={}_timeout={}_branching={}-{}-{}_lra-init={}_lra={}_lrb={}_PGD={}_rtim={}.npy'. \
+    #     format(arguments.Config['model']['name'], arguments.Config["data"]["start"],  arguments.Config["data"]["end"], arguments.Config["solver"]["beta-crown"]["iteration"], arguments.Config["solver"]["beta-crown"]["batch_size"],
+    #            arguments.Config["bab"]["timeout"], arguments.Config["bab"]["branching"]["method"], arguments.Config["bab"]["branching"]["reduceop"],
+    #            arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"],   time_flag )
+    verified_ret_save_path = 'Verified_ret_'+ common_save_path_suffix
+    print(f'saving results to {verified_ret_save_path}')
 
     #选择模式，仅使用crown验证
     if arguments.Config["general"]["mode"] == "crown-only-verified-acc":
@@ -282,29 +304,34 @@ def main():
         return
         ##直接退出
 
-
-    ret, lb_record, attack_success = [], [], []
+    #attack_success: 被证明属性不满足的数量
+    ret, lb_record, attack_success = [], [], [] 
+    disproved_success=[]
+    result = []
     mip_unsafe, mip_safe, mip_unknown = [], [], []
-    verified_acc = len(bnb_ids)
-    verified_failed = []
+    verified_acc:int = len(bnb_ids) #验证通过的数量
+    verified_failed = []            #规定时间内未能成功验证的数量
     verified_success_list = []
     example_time = []
     skipped_examples = []
-    nat_acc = len(bnb_ids)
-    orig_timeout = arguments.Config["bab"]["timeout"]
+    nat_acc = len(bnb_ids)  #原始分类正确的数量
+    orig_timeout = arguments.Config["bab"]["timeout"] #这个变量中间会变化
 
     model_ori, all_data_max, all_data_min = model_ori.to(arguments.Config["general"]["device"]), data_max.to(arguments.Config["general"]["device"]), data_min.to(arguments.Config["general"]["device"])
     if isinstance(perturb_epsilon, torch.Tensor):
-        perturb_eps = perturb_epsilon.to(arguments.Config["general"]["device"])
+        perturb_eps = perturb_epsilon.to(arguments.Config["general"]["device"]) # copy data to GPU/CPU
 
-    #enumerate返回(id,value[id])pair 对
+    #enumerate返回(id,value[id])pair ,主循环，验证0-100图像
     for new_idx, imag_idx in enumerate(bnb_ids):
-        arguments.Config["bab"]["timeout"] = orig_timeout
-        print('\n %%% idx:', new_idx, 'img ID:', imag_idx, '%%%')
+        if time.time() - st_time > run_timeout:
+            break
+        x, y = X[imag_idx], int(labels[imag_idx].item())
+        #每次开始时重置时间余值
+        arguments.Config["bab"]["timeout"] = orig_timeout #timeout是针对一幅图像允许验证的总时间
+        print(f'\n %%% idx: {new_idx} img ID: {imag_idx} Label: {y}    %%%')
         torch.cuda.empty_cache()
         gc.collect()
 
-        x, y = X[imag_idx], int(labels[imag_idx].item())
         x = x.unsqueeze(0).to(dtype=torch.get_default_dtype(), device=arguments.Config["general"]["device"])
         #bound的类型
         if arguments.Config["specification"]["type"] == 'bound':
@@ -337,7 +364,7 @@ def main():
             verified_acc -= 1
             nat_acc -= 1
             # attack_success.append(imag_idx)
-            continue
+            continue #当分类不成功时，直接进入下一个
         # else:
         #     # enable here to check clean acc
         #     continue
@@ -346,13 +373,13 @@ def main():
         verified_status = "unknown"
         attack_margin = None
         attack_images = None
-        example_start_time = time.time()
-
+        example_start_time = time.time() #start time for one image
+        #使用pgd_attack
         if arguments.Config["attack"]["pgd_order"] == "before":
             start_attack = time.time()
             attack_args = {'dataset': attack_dataset, 'model': model_ori, 'x': x, 'max_eps': perturb_eps, 'data_min': data_min, 'data_max': data_max, 'y': y}
             attack_ret, attack_images, attack_margin = pgd_attack(**attack_args)
-            ret.append([imag_idx, 0, 0, time.time()-start_attack, new_idx, -3, np.inf, np.inf])
+            ret.append([imag_idx, 0, 0, time.time()-start_attack, new_idx, -3, np.inf, np.inf,y])
             if attack_ret:
                 # Attack success.
                 verified_status = "unsafe-pgd"
@@ -368,7 +395,7 @@ def main():
 
         # Incomplete verification is enabled by default. The intermediate lower and upper bounds will be reused in bab and mip.
         if not verified_success and (arguments.Config["general"]["enable_incomplete_verification"] or arguments.Config["general"]["complete_verifier"] == "bab-refine"):
-            start_incomplete = time.time()
+            start_incomplete = time.time() #使用非完全验证方法的crown的开始时间
             data = x
             if arguments.Config["specification"]["type"] == 'lp':
                 # Lp norm.
@@ -393,24 +420,25 @@ def main():
             if not verified_success:
                 lower_bounds, upper_bounds = saved_bounds[1], saved_bounds[2]
             arguments.Config["bab"]["timeout"] -= (time.time()-start_incomplete)
-            ret.append([imag_idx, 0, 0, time.time()-start_incomplete, new_idx, -1, np.inf, np.inf])
+            #此处记录了仅使用非完全验证方法就成功的时间的时间，由于所有的均会使用非完全验证的，因此可以不进行记录
+            ret.append([imag_idx, 0, 0, time.time() - start_incomplete, new_idx, -1, np.inf, np.inf,y])
 
-        if verified_success:#使用非完全验证与完全验证的组合
-            print(f"Result: image {imag_idx} 验证成功 (with incomplete verifier)!")
+        if verified_success:#如果验证成功
+            print(f"Result: image {imag_idx} incomplete verifier 验证成功!")
             verified_success_list.append(imag_idx)
             example_time.append(time.time() - example_start_time)
             #print(f'Wall time: {example_time[-1]}')
             print(f'总用时: {example_time[-1]}')
             continue
         else:
-             print(f"Result: image {imag_idx} 验证失败 (with incomplete verifier)!")
+             print(f"Result: image {imag_idx} incomplete verifier 验证不成功!")
 
 
         if arguments.Config["attack"]["pgd_order"] == "after":
             start_attack = time.time()
             attack_args = {'dataset': attack_dataset, 'model': model_ori, 'x': x, 'max_eps': perturb_eps, 'data_min': data_min, 'data_max': data_max, 'y': y}
             attack_ret, attack_images, attack_margin = pgd_attack(**attack_args)
-            ret.append([imag_idx, 0, 0, time.time()-start_attack, new_idx, -3, np.inf, np.inf])
+            ret.append([imag_idx, 0, 0, time.time()-start_attack, new_idx, -3, np.inf, np.inf,y])
             if attack_ret:
                 # Attack success.
                 verified_status = "unsafe-pgd"
@@ -499,7 +527,7 @@ def main():
             elif verified_status == "safe-mip" or verified_status == "safe-incomplete-refine":
                 mip_safe.append(imag_idx)
             arguments.Config["bab"]["timeout"] -= (time.time()-start_refine)
-            ret.append([imag_idx, 0, 0, time.time()-start_refine, new_idx, -2, np.inf, np.inf])
+            ret.append([imag_idx, 0, 0, time.time()-start_refine, new_idx, -2, np.inf, np.inf,y])
             print("time threshold left for bab:", arguments.Config["bab"]["timeout"])
 
         if verified_success:
@@ -532,14 +560,17 @@ def main():
             continue
 
         pidx_all_verified = True
-        bab_attack_success = False
+        bab_attack_success = False #应该叫bab disproved
         for pidx in labels_to_verify:
             if isinstance(pidx, torch.Tensor):
                 pidx = pidx.item()
-            print('##### [{}:{}] Tested against {} ######'.format(new_idx, imag_idx, pidx))
-            if pidx == y:
+            print('##### [new_idx<{}>: imag_idx <{}>, imag_label<{}>] Tested against target label {} ######'.format(new_idx, imag_idx, y, pidx))
+            if pidx == y: #如果是正确标签，不做记录
                 print("groundtruth label, skip!")
-                ret.append([imag_idx, 0, 0, 0, new_idx, pidx, np.inf, np.inf])
+               # ret.append([imag_idx, 0, 0, 0, new_idx, pidx, np.inf, np.inf]) 
+                # imag_idx, l, nodes, time_cost, new_idx, pidx, u, attack_margin = i
+                #image_idx, true_label, time_cost
+                result.append([imag_idx, y, 0, 0, 0, new_idx, pidx, np.inf, np.inf])
                 continue
 
             torch.cuda.empty_cache()
@@ -574,35 +605,38 @@ def main():
                         print(f"Initial alpha-CROWN verified for label {pidx} with bound {init_global_lb[0, pidx]}")
                         l, u, nodes, glb_record = rlb[-1].item(), float('inf'), 0, []
                     else:
-                        if arguments.Config["bab"]["timeout"] < 0:
+                        if arguments.Config["bab"]["timeout"] < 0: #如果超过，则验证失败
                             print(f"Image {imag_idx} verification failure (running out of time budget).")
                             l, u, nodes, glb_record = rlb[-1].item(), float('inf'), 0, []
                         else:
-                            # feed initialed bounds to save time
+                            # feed initialed bounds to save time with incomplete
                             l, u, nodes, glb_record = bab(model_ori, x, pidx, y=y, eps=perturb_eps, data_ub=data_max, data_lb=data_min,
                                            lower_bounds=lower_bounds, upper_bounds=upper_bounds, reference_slopes=saved_slopes, attack_images=targeted_attack_images)
                 else:
                     assert arguments.Config["general"]["complete_verifier"] == "bab"  # for MIP and BaB-Refine.
                     # Main function to run verification
+                    arguments.Config["bab"]["timeout"] = orig_timeout #每次验证一个属性设置一次时间timeout
                     l, u, nodes, glb_record = bab(model_ori, x, pidx, y=y, eps=perturb_eps,
                                                   data_ub=data_max, data_lb=data_min, attack_images=targeted_attack_images)
                 time_cost = time.time() - start_inner
-                print('Image {} label {} verification end, final lower bound {}, upper bound {}, time: {}'.format(imag_idx, pidx, l, u, time_cost))
-                ret.append([imag_idx, l, nodes, time_cost, new_idx, pidx, u, attack_margin[pidx] if attack_margin is not None else np.inf])
+                #print('Image {} label {} verification end, final lower bound {}, upper bound {}, time: {}'.format(imag_idx, pidx, l, u, time_cost))
+                ret.append([imag_idx, l, nodes, time_cost, new_idx, pidx, u, attack_margin[pidx]  if attack_margin is not None else np.inf,y])
                 arguments.Config["bab"]["timeout"] -= time_cost
+                arguments.Config["bab"]["timeout"] = orig_timeout #每次验证一个属性设置一次时间timeout
+
                 lb_record.append([glb_record])
-                print(imag_idx, l)
-                np.save(save_path, np.array(ret))
+                #print(imag_idx, l)#image idx, lowerbound
+                np.save(verified_ret_save_path, np.array(ret))
                 # np.save('lb_record_' + save_path, np.array(lb_record))
-                if u < arguments.Config["bab"]["decision_thresh"]:
+                if u < arguments.Config["bab"]["decision_thresh"]: #当最小值上界上界u小于0时，证伪了propoterfy
                     verified_status = "unsafe-bab"
                     pidx_all_verified = False
                     bab_attack_success = True
-                    break
-                elif l < arguments.Config["bab"]["decision_thresh"]:
+                    #break #要验证所的(lable, target) pairs
+                elif l < arguments.Config["bab"]["decision_thresh"]: #时间到，未完成验证
                     pidx_all_verified = False
                     # break to run next sample save time if any label is not verified.
-                    break
+                    #break
             except KeyboardInterrupt:
                 print('time:', imag_idx, time.time()-start_inner, "\n",)
                 print(ret)
@@ -612,14 +646,15 @@ def main():
         example_time.append(time.time() - example_start_time)
         if not pidx_all_verified:
             verified_acc -= 1
-            if bab_attack_success:
+            if bab_attack_success: #通过bab disproved 证明最大值小于0
                 attack_success.append(imag_idx)
-                print(f'Result: image {imag_idx} attack success (with branch and bound)!')
+                disproved_success.append(imag_idx)
+                print(f'Result: image_idx: [{imag_idx}] attack success (with branch and bound)!')
             else:
                 verified_failed.append(imag_idx)
-                print(f'Result: image {imag_idx} verification failure (with branch and bound).')
+                print(f'Result: image_idx [{imag_idx}] verification failure (with branch and bound).')
         else:
-            verified_success_list.append(imag_idx)
+            verified_success_list.append(imag_idx) #当所有pidx都验证功能时，记录
             print(f'Result: image {imag_idx} verification success (with branch and bound)!')
         # Make sure ALL tensors used in this loop are deleted here.
         del init_global_lb, saved_bounds, saved_slopes
@@ -628,16 +663,39 @@ def main():
     # some results analysis
     np.set_printoptions(suppress=True)
     ret = np.array(ret)
-
-    print(f'\nnumber of correctly classified examples: {nat_acc}')
+    #1分枝方法
+    print("\nBranching method:", arguments.Config["bab"]["branching"]["method"])
+    print("epsilon::", arguments.Config["specification"]["epsilon"])
+    print("NN model::", arguments.Config["model"]["path"])
+    #2.正确分类
+    print(f'number of correctly classified examples: {nat_acc}')
+    #2.错误分类
     print(f'incorrectly classified idx (total {len(skipped_examples)}):', skipped_examples)
-    print(f'attack success idx (total {len(attack_success)}):', attack_success)
+    verfied_skipped_save_path = 'Err_idx_' + common_save_path_suffix
+    #np.save('Verified_skipped_{}_{}_start{}_end{}_verified{}_branching_{}_time_{}.npy'.
+    #                format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"], verified_acc, arguments.Config["bab"]["branching"]["method"],time_flag), np.array(skipped_examples))
+    np.save(verfied_skipped_save_path, np.array(skipped_examples))
+  
+    #证伪的数量
+    print(f'Falsified idx (total {len(attack_success)}):', attack_success)
     if len(attack_success) > 0:
-        print('attack_success rate:', len(attack_success)/len(bnb_ids))
-        np.save('Attack-success_{}_{}_start{}_end{}.npy'.
-                format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"]), np.array(attack_success))
-    print(f'verification success idx (total {len(verified_success_list)}):', verified_success_list)
-    print(f'verification failure idx (total {len(verified_failed)}):', verified_failed)
+        print('falsification rate:', len(attack_success)/len(bnb_ids))
+        disproved_success_save_path = 'Attacked_idx' + common_save_path_suffix
+        #np.save('Attack_success_{}_{}_start{}_end{}_time{}.npy'.
+         #       format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"],time_flag), np.array(attack_success))
+        np.save(disproved_success_save_path, np.array(attack_success))
+        
+
+    print(f'Verfied idx (total {len(verified_success_list)}):', verified_success_list)
+    #记录验证功能的
+    verified_success_save_path = 'Verified_idx_' + common_save_path_suffix
+    #np.save('Verified_success_{}_{}_start{}_end{}_verified{}_branching_{}_time_{}.npy'.
+    #                format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"], verified_acc, arguments.Config["bab"]["branching"]["method"],time_flag), np.array(verified_success_list))
+    np.save(verified_success_save_path, np.array(verified_success_list))
+  
+
+
+    print(f'Failed-verified idx (total {len(verified_failed)}):', verified_failed)
     if arguments.Config["general"]["complete_verifier"] == "mip":
         print("##### Complete MIP solver summary #####")
         print(f"mip verified safe idx: {mip_safe}")
@@ -648,22 +706,35 @@ def main():
                 f"unknown rate {len(mip_unknown)/len(bnb_ids)}, "
                 f"total {len(bnb_ids)}")
 
-    print("final verified acc: {}%[{}]".format(verified_acc/len(bnb_ids)*100., len(bnb_ids)))
-    np.save('Verified-acc_{}_{}_start{}_end{}_{}_branching_{}.npy'.
-                    format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"], verified_acc, arguments.Config["bab"]["branching"]["method"]), np.array(verified_failed))
+    total_verification_num = len(verified_success_list) + len(verified_failed) + len(attack_success)
 
-    total_verification = len(verified_success_list) + len(verified_failed)
-    print(f"verifier is called on {total_verification} examples.")
-    print("total verified:", verified_acc)
-    if ret.size > 0:
-        # print("mean time [total:{}]: {}".format(len(bnb_ids), ret[:, 3].sum()/float(len(bnb_ids))))
-        print("mean time [cnt:{}] (excluding attack success): {}".format(total_verification, ret[:, 3][ret[:, 5] != -3].sum()/float(total_verification if total_verification != 0 else "nan")))
-        if len(attack_success) > 0:
-            print("mean time [cnt:{}] (including attack success): {}".format(total_verification + len(attack_success), ret[:, 3].sum() / float(total_verification + len(attack_success))))
-    print("branching method:", arguments.Config["bab"]["branching"]["method"])
+    print(f"verifier is called on {total_verification_num} examples.")
+
+    print("final verified acc: {}%[{}/{}]".format(len(verified_success_list)/len(bnb_ids)*100., len(verified_success_list),len(bnb_ids)))
+    print("final falsified rate: {}%[{}/{}]".format(len(attack_success)/len(bnb_ids)*100., len(attack_success),len(bnb_ids)))
+    print("final failed rate: {}%[{}/{}]".format(len(verified_failed)/len(bnb_ids)*100., len(verified_failed),len(bnb_ids)))
+  
+    #无法验证的列表
+    Verified_failed_save_path='Unverified_idx_'+common_save_path_suffix
+
+    #np.save('Verified_failed_{}_{}_start{}_end{}_verified{}_branching_{}_time_{}.npy'.
+    #                format(arguments.Config['model']['name'], arguments.Config["data"]["dataset"], arguments.Config["data"]["start"], arguments.Config["data"]["end"], verified_acc, arguments.Config["bab"]["branching"]["method"],time_flag), np.array(verified_failed))
+    np.save(Verified_failed_save_path, np.array(verified_failed))
+  
+    #total_verification = len(verified_success_list) + len(verified_failed) + len(attack_success)
+    #print(f"verifier is called on {total_verification} examples.")
+    #print("total verified:", verified_acc)
+    
+    
+    #if ret.size > 0:
+    #    # print("mean time [total:{}]: {}".format(len(bnb_ids), ret[:, 3].sum()/float(len(bnb_ids))))
+    #    print("mean time [cnt:{}] (excluding attack success:[proved + failed]): {}".format(total_verification, ret[:, 3][ret[:, 5] != -3].sum()/float(total_verification if total_verification != 0 else "nan")))
+    #    if len(attack_success) > 0:
+    #        print("mean time [cnt:{}] (including attack success[disproved(attack) + disproved +  failed]): {}".format(total_verification + len(attack_success), ret[:, 3].sum() / float(total_verification + len(attack_success))))
+    print(f"Verification time {ret[:, 3].sum()} on {total_verification_num} examples. Average time: {ret[:, 3].sum()/total_verification_num}")
     ed_time = time.time()
     if verified_acc >0 :
-            print(f"Total time : {ed_time-st_time}, Average time:{(ed_time-st_time)/total_verification}")
+            print(f"Total time : {ed_time-st_time}, Average time(excluding incorrect classified):{(ed_time-st_time)/total_verification_num}")
 if __name__ == "__main__":
     #先执行函数
     config_args()

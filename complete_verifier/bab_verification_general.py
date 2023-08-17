@@ -154,7 +154,7 @@ def incomplete_verifier(model_ori, data, y, data_ub=None, data_lb=None, eps=0.0)
         c = None
     model = LiRPAConvNet(model_ori, y, None, device=arguments.Config["general"]["device"],
                 in_size=data.shape, deterministic=arguments.Config["general"]["deterministic"], simplify=False, c=c, conv_mode=arguments.Config["general"]["conv_mode"])
-    print('Model prediction is:', model.net(data))
+    #print('Model prediction is:', model.net(data))
     if list(model.net.parameters())[0].is_cuda:
         data = data.cuda()
         data_lb, data_ub = data_lb.cuda(), data_ub.cuda()
@@ -242,6 +242,30 @@ def mip(saved_bounds, y, labels_to_verify=None):
 
 
 def bab(unwrapped_model, data, target, y, eps=None, data_ub=None, data_lb=None, lower_bounds=None, upper_bounds=None, reference_slopes=None, attack_images=None):
+    """ bab 验证的总函数，输入一个神经网络模型，指定图像，标签，能够返回输出的上下界 
+
+    Args:
+        unwrapped_model (_type_): NN model,
+        data (_type_): image data
+        target (_type_): target label,
+        y (_type_): true lable of the image
+        eps (_type_, optional): norm of the noise
+        data_ub (_type_, optional): _description_. Defaults to None.
+        data_lb (_type_, optional): _description_. Defaults to None.
+        lower_bounds (_type_, optional): _description_. Defaults to None.
+        upper_bounds (_type_, optional): _description_. Defaults to None.
+        reference_slopes (_type_, optional): 由incomplete 验证器计算的斜率值 Defaults to None.
+        attack_images (_type_, optional): 未使用. Defaults to None.
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        min_lb: lower bound of minimum
+        min_ub: upper bound of minimum
+        nb_states: 0(not used)
+        glb_record: 返回最小值的下界，上界 ,glb_record:[time lower_bound]
+    """    
     norm = arguments.Config["specification"]["norm"]
     if arguments.Config["specification"]["type"] == 'lp':
         if norm == np.inf:
@@ -270,7 +294,7 @@ def bab(unwrapped_model, data, target, y, eps=None, data_ub=None, data_lb=None, 
         if num_outputs > 1:
             c = torch.zeros((1, 1, num_outputs), device=arguments.Config["general"]["device"])  # we only support c with shape of (1, 1, n)
             c[0, 0, y] = 1
-            c[0, 0, target] = -1
+            c[0, 0, target] = -1 #the coffiecent vector for output z[y] - z[target]>=0
         else:
             # Binary classifier, only 1 output. Assume negative label means label 0, postive label means label 1.
             c = (float(y) - 0.5) * 2 * torch.ones(size=(1, 1, 1))
@@ -286,7 +310,7 @@ def bab(unwrapped_model, data, target, y, eps=None, data_ub=None, data_lb=None, 
         data = data.cuda()
         data_lb, data_ub = data_lb.cuda(), data_ub.cuda()
         # c = c.cuda()
-    print('Model prediction is:', model.net(data))
+    #print('Model prediction is:', model.net(data))
 
 
     ptb = PerturbationLpNorm(norm=norm, eps=eps, x_L=data_lb, x_U=data_ub)
@@ -380,9 +404,19 @@ def main():
                 csv_file.append(row)
 
         save_path = 'vnn-comp_[{}]_start={}_end={}_iter={}_b={}_timeout={}_branching={}-{}-{}_lra-init={}_lra={}_lrb={}_PGD={}.npz'. \
-            format(os.path.splitext(arguments.Config["general"]["csv_name"])[0], arguments.Config["data"]["start"],  arguments.Config["data"]["end"], arguments.Config["solver"]["beta-crown"]["iteration"], arguments.Config["solver"]["beta-crown"]["batch_size"],
-                   arguments.Config["bab"]["timeout"], arguments.Config["bab"]["branching"]["method"], arguments.Config["bab"]["branching"]["reduceop"],
-                   arguments.Config["bab"]["branching"]["candidates"], arguments.Config["solver"]["alpha-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_alpha"], arguments.Config["solver"]["beta-crown"]["lr_beta"], arguments.Config["attack"]["pgd_order"])
+            format(os.path.splitext(arguments.Config["general"]["csv_name"])[0],
+             arguments.Config["data"]["start"],  
+             arguments.Config["data"]["end"], 
+             arguments.Config["solver"]["beta-crown"]["iteration"], 
+             arguments.Config["solver"]["beta-crown"]["batch_size"],
+             arguments.Config["bab"]["timeout"], 
+             arguments.Config["bab"]["branching"]["method"], 
+             arguments.Config["bab"]["branching"]["reduceop"],
+             arguments.Config["bab"]["branching"]["candidates"],
+              arguments.Config["solver"]["alpha-crown"]["lr_alpha"], 
+              arguments.Config["solver"]["beta-crown"]["lr_alpha"],
+               arguments.Config["solver"]["beta-crown"]["lr_beta"], 
+               arguments.Config["attack"]["pgd_order"])
         print(f'saving results to {save_path}')
 
         arguments.Config["data"]["end"] = min(arguments.Config["data"]["end"], reader.line_num)
@@ -577,6 +611,7 @@ def main():
                                                  lower_bounds=lower_bounds, upper_bounds=upper_bounds, reference_slopes=saved_slopes)
                     else:
                         assert arguments.Config["general"]["complete_verifier"] == "bab"  # for MIP and BaB-Refine.
+
                         l, u, nodes, _ = bab(model_ori, x, pidx, y, data_ub=data_max, data_lb=data_min)
                     time_cost = time.time() - start
                     print('Image {} against label {} verification end, Time cost: {}'.format(new_idx, pidx, time_cost))

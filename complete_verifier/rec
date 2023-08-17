@@ -1,0 +1,576 @@
+Configurations:
+
+general:
+  device: cuda
+  seed: 100
+  conv_mode: patches
+  deterministic: false
+  double_fp: false
+  loss_reduction_func: sum
+  record_bounds: false
+  mode: verified-acc
+  complete_verifier: bab
+  enable_incomplete_verification: false
+  get_crown_verified_acc: true
+model:
+  path: models/eran/mnist_6_100_nat.pth
+  name: mnist_6_100
+data:
+  start: 0
+  end: 3
+  num_outputs: 10
+  mean: [0.0]
+  std: [1.0]
+  pkl_path: null
+  dataset: MNIST_ERAN
+  data_filter_path: null
+  data_idx_file: null
+specification:
+  type: lp
+  norm: .inf
+  epsilon: 0.01
+solver:
+  alpha-crown:
+    lr_alpha: 0.1
+    iteration: 5
+    share_slopes: false
+    no_joint_opt: false
+  beta-crown:
+    batch_size: 1
+    lr_alpha: 0.01
+    lr_beta: 0.05
+    lr_decay: 0.98
+    optimizer: adam
+    iteration: 5
+    beta: true
+    beta_warmup: true
+  mip:
+    parallel_solvers: null
+    solver_threads: 1
+    refine_neuron_timeout: 15
+    refine_neuron_time_percentage: 0.8
+    early_stop: true
+bab:
+  max_domains: 200000
+  decision_thresh: 0
+  timeout: 1.0
+  get_upper_bound: false
+  dfs_percent: 0.0
+  branching:
+    method: fsb
+    candidates: 3
+    reduceop: max
+attack:
+  pgd_order: skip
+  enable_mip_attack: false
+  pgd_steps: 100
+  pgd_restarts: 30
+  pgd_early_stop: true
+  pgd_lr_decay: 0.99
+  pgd_alpha: auto
+debug:
+  lp_test: null
+
+Experiments at Thu Aug 17 10:51:29 2023 on DESKTOP-IO2LPOE
+Sequential(
+  (0): Flatten()
+  (1): Linear(in_features=784, out_features=100, bias=True)
+  (2): ReLU()
+  (3): Linear(in_features=100, out_features=100, bias=True)
+  (4): ReLU()
+  (5): Linear(in_features=100, out_features=100, bias=True)
+  (6): ReLU()
+  (7): Linear(in_features=100, out_features=100, bias=True)
+  (8): ReLU()
+  (9): Linear(in_features=100, out_features=100, bias=True)
+  (10): ReLU()
+  (11): Linear(in_features=100, out_features=10, bias=True)
+)
+############################
+Sampled data loaded. Data already preprocessed!
+Shape: torch.Size([1000, 1, 28, 28]) torch.Size([1000]) torch.Size([1000])
+X range: tensor(2.8215) tensor(-0.4242) tensor(-0.0274)
+Note runnerup label is empty here!
+############################
+epsilon after preprocessing: tensor([[[[0.0325]]]]), data_max = tensor([[[[2.8215]]]]), data_min = tensor([[[[-0.4242]]]])
+Task length: 3
+saving results to Verified_ret_[mnist_6_100]_start=0_end=3_norm=0.01_bIt=5_bat=1_timeout=1.0_branching=fsb_rdop=max_cndN=3_Alra=0.1_Blra=0.01_Blrb=0.05_PGD=skip_T=230817_105129.npy
+
+ %%% idx: 0 img ID: 0 Label: 7    %%%
+predicted_label:7, correct_label: 7, image norm: 474.7022399902344
+Result: image 0 incomplete verifier 验证不成功!
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[51.6763]], device='cuda:0') None
+51.67626190185547
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 1 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[49.9732]], device='cuda:0') None
+49.97322082519531
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 2 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[43.7502]], device='cuda:0') None
+43.75020217895508
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[40.5474]], device='cuda:0') None
+40.547428131103516
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[46.2686]], device='cuda:0') None
+46.268646240234375
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[55.7493]], device='cuda:0') None
+55.74932861328125
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[66.0730]], device='cuda:0') None
+66.07295989990234
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 7 ######
+groundtruth label, skip!
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[60.2008]], device='cuda:0') None
+60.200782775878906
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[31.4215]], device='cuda:0') None
+31.421472549438477
+Result: image 0 verification success (with branch and bound)!
+Wall time: 1.1132171154022217
+
+ %%% idx: 1 img ID: 1 Label: 2    %%%
+predicted_label:2, correct_label: 2, image norm: 568.904296875
+Result: image 1 incomplete verifier 验证不成功!
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[39.0230]], device='cuda:0') None
+39.02301788330078
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 1 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[21.4402]], device='cuda:0') None
+21.440214157104492
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 2 ######
+groundtruth label, skip!
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[28.2871]], device='cuda:0') None
+28.287078857421875
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[33.9436]], device='cuda:0') None
+33.94362258911133
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[44.5770]], device='cuda:0') None
+44.577003479003906
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[36.7291]], device='cuda:0') None
+36.72914505004883
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 7 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[29.3429]], device='cuda:0') None
+29.342863082885742
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[36.8523]], device='cuda:0') None
+36.852294921875
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[48.1445]], device='cuda:0') None
+48.14445495605469
+Result: image 1 verification success (with branch and bound)!
+Wall time: 0.842745304107666
+
+ %%% idx: 2 img ID: 2 Label: 1    %%%
+predicted_label:1, correct_label: 1, image norm: 408.0895080566406
+Result: image 2 incomplete verifier 验证不成功!
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[56.9812]], device='cuda:0') None
+56.98122024536133
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 1 ######
+groundtruth label, skip!
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 2 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[32.4416]], device='cuda:0') None
+32.44160842895508
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[53.4540]], device='cuda:0') None
+53.453975677490234
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[38.0262]], device='cuda:0') None
+38.026153564453125
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[51.5381]], device='cuda:0') None
+51.538055419921875
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[45.7558]], device='cuda:0') None
+45.755802154541016
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 7 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[37.1857]], device='cuda:0') None
+37.185672760009766
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[39.3319]], device='cuda:0') None
+39.331912994384766
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[52.2720]], device='cuda:0') None
+52.27195739746094
+Result: image 2 verification success (with branch and bound)!
+Wall time: 0.8297793865203857
+
+Branching method: fsb
+epsilon:: 0.01
+NN model:: models/eran/mnist_6_100_nat.pth
+number of correctly classified examples: 3
+incorrectly classified idx (total 0): []
+Falsified idx (total 0): []
+Verfied idx (total 3): [0, 1, 2]
+Failed-verified idx (total 0): []
+verifier is called on 3 examples.
+final verified acc: 100.0%[3/3]
+final falsified rate: 0.0%[0/3]
+final failed rate: 0.0%[0/3]
+Verification time 1.8271396160125732 on 3 examples. Average time: 0.6090465386708578
+Total time : 4.422363042831421, Average time(excluding incorrect classified):1.4741210142771404
+Configurations:
+
+general:
+  device: cuda
+  seed: 100
+  conv_mode: patches
+  deterministic: false
+  double_fp: false
+  loss_reduction_func: sum
+  record_bounds: false
+  mode: verified-acc
+  complete_verifier: bab
+  enable_incomplete_verification: false
+  get_crown_verified_acc: true
+model:
+  path: models/eran/mnist_6_100_nat.pth
+  name: mnist_6_100
+data:
+  start: 0
+  end: 3
+  num_outputs: 10
+  mean: [0.0]
+  std: [1.0]
+  pkl_path: null
+  dataset: MNIST_ERAN
+  data_filter_path: null
+  data_idx_file: null
+specification:
+  type: lp
+  norm: .inf
+  epsilon: 0.01
+solver:
+  alpha-crown:
+    lr_alpha: 0.1
+    iteration: 5
+    share_slopes: false
+    no_joint_opt: false
+  beta-crown:
+    batch_size: 1
+    lr_alpha: 0.01
+    lr_beta: 0.05
+    lr_decay: 0.98
+    optimizer: adam
+    iteration: 5
+    beta: true
+    beta_warmup: true
+  mip:
+    parallel_solvers: null
+    solver_threads: 1
+    refine_neuron_timeout: 15
+    refine_neuron_time_percentage: 0.8
+    early_stop: true
+bab:
+  max_domains: 200000
+  decision_thresh: 0
+  timeout: 1.0
+  get_upper_bound: false
+  dfs_percent: 0.0
+  branching:
+    method: fsb
+    candidates: 3
+    reduceop: max
+attack:
+  pgd_order: skip
+  enable_mip_attack: false
+  pgd_steps: 100
+  pgd_restarts: 30
+  pgd_early_stop: true
+  pgd_lr_decay: 0.99
+  pgd_alpha: auto
+debug:
+  lp_test: null
+
+Experiments at Thu Aug 17 11:09:49 2023 on DESKTOP-IO2LPOE
+Sequential(
+  (0): Flatten()
+  (1): Linear(in_features=784, out_features=100, bias=True)
+  (2): ReLU()
+  (3): Linear(in_features=100, out_features=100, bias=True)
+  (4): ReLU()
+  (5): Linear(in_features=100, out_features=100, bias=True)
+  (6): ReLU()
+  (7): Linear(in_features=100, out_features=100, bias=True)
+  (8): ReLU()
+  (9): Linear(in_features=100, out_features=100, bias=True)
+  (10): ReLU()
+  (11): Linear(in_features=100, out_features=10, bias=True)
+)
+Configurations:
+
+general:
+  device: cuda
+  seed: 100
+  conv_mode: patches
+  deterministic: false
+  double_fp: false
+  loss_reduction_func: sum
+  record_bounds: false
+  mode: verified-acc
+  complete_verifier: bab
+  enable_incomplete_verification: false
+  get_crown_verified_acc: true
+model:
+  path: models/eran/mnist_6_100_nat.pth
+  name: mnist_6_100
+data:
+  start: 0
+  end: 3
+  num_outputs: 10
+  mean: [0.0]
+  std: [1.0]
+  pkl_path: null
+  dataset: MNIST_ERAN
+  data_filter_path: null
+  data_idx_file: null
+specification:
+  type: lp
+  norm: .inf
+  epsilon: 0.01
+solver:
+  alpha-crown:
+    lr_alpha: 0.1
+    iteration: 5
+    share_slopes: false
+    no_joint_opt: false
+  beta-crown:
+    batch_size: 1
+    lr_alpha: 0.01
+    lr_beta: 0.05
+    lr_decay: 0.98
+    optimizer: adam
+    iteration: 5
+    beta: true
+    beta_warmup: true
+  mip:
+    parallel_solvers: null
+    solver_threads: 1
+    refine_neuron_timeout: 15
+    refine_neuron_time_percentage: 0.8
+    early_stop: true
+bab:
+  max_domains: 200000
+  decision_thresh: 0
+  timeout: 1.0
+  get_upper_bound: false
+  dfs_percent: 0.0
+  branching:
+    method: fsb
+    candidates: 3
+    reduceop: max
+attack:
+  pgd_order: skip
+  enable_mip_attack: false
+  pgd_steps: 100
+  pgd_restarts: 30
+  pgd_early_stop: true
+  pgd_lr_decay: 0.99
+  pgd_alpha: auto
+debug:
+  lp_test: null
+
+Experiments at Thu Aug 17 11:17:06 2023 on DESKTOP-IO2LPOE
+Sequential(
+  (0): Flatten()
+  (1): Linear(in_features=784, out_features=100, bias=True)
+  (2): ReLU()
+  (3): Linear(in_features=100, out_features=100, bias=True)
+  (4): ReLU()
+  (5): Linear(in_features=100, out_features=100, bias=True)
+  (6): ReLU()
+  (7): Linear(in_features=100, out_features=100, bias=True)
+  (8): ReLU()
+  (9): Linear(in_features=100, out_features=100, bias=True)
+  (10): ReLU()
+  (11): Linear(in_features=100, out_features=10, bias=True)
+)
+############################
+Sampled data loaded. Data already preprocessed!
+Shape: torch.Size([1000, 1, 28, 28]) torch.Size([1000]) torch.Size([1000])
+X range: tensor(2.8215) tensor(-0.4242) tensor(-0.0274)
+Note runnerup label is empty here!
+############################
+epsilon after preprocessing: tensor([[[[0.0325]]]]), data_max = tensor([[[[2.8215]]]]), data_min = tensor([[[[-0.4242]]]])
+Task length: 3
+saving results to Verified_ret_[mnist_6_100]_start=0_end=3_norm=0.01_bIt=5_bat=1_timeout=1.0_branching=fsb_rdop=max_cndN=3_Alra=0.1_Blra=0.01_Blrb=0.05_PGD=skip_T=230817_111706.npy
+
+ %%% idx: 0 img ID: 0 Label: 7    %%%
+predicted_label:7, correct_label: 7, image norm: 474.7022399902344
+Result: image 0 incomplete verifier 验证不成功!
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[51.6763]], device='cuda:0') None
+51.67626190185547
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 1 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[49.9732]], device='cuda:0') None
+49.97322082519531
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 2 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[43.7502]], device='cuda:0') None
+43.75020217895508
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[40.5474]], device='cuda:0') None
+40.547428131103516
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[46.2686]], device='cuda:0') None
+46.268646240234375
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[55.7493]], device='cuda:0') None
+55.74932861328125
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[66.0730]], device='cuda:0') None
+66.07295989990234
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 7 ######
+groundtruth label, skip!
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[60.2008]], device='cuda:0') None
+60.200782775878906
+##### [new_idx<0>: imag_idx <0>, imag_label<7>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[31.4215]], device='cuda:0') None
+31.421472549438477
+Result: image 0 verification success (with branch and bound)!
+Wall time: 1.0671441555023193
+
+ %%% idx: 1 img ID: 1 Label: 2    %%%
+predicted_label:2, correct_label: 2, image norm: 568.904296875
+Result: image 1 incomplete verifier 验证不成功!
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[39.0230]], device='cuda:0') None
+39.02301788330078
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 1 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[21.4402]], device='cuda:0') None
+21.440214157104492
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 2 ######
+groundtruth label, skip!
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[28.2871]], device='cuda:0') None
+28.287078857421875
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[33.9436]], device='cuda:0') None
+33.94362258911133
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[44.5770]], device='cuda:0') None
+44.577003479003906
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[36.7291]], device='cuda:0') None
+36.72914505004883
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 7 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[29.3429]], device='cuda:0') None
+29.342863082885742
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[36.8523]], device='cuda:0') None
+36.852294921875
+##### [new_idx<1>: imag_idx <1>, imag_label<2>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[48.1445]], device='cuda:0') None
+48.14445495605469
+Result: image 1 verification success (with branch and bound)!
+Wall time: 0.8108301162719727
+
+ %%% idx: 2 img ID: 2 Label: 1    %%%
+predicted_label:1, correct_label: 1, image norm: 408.0895080566406
+Result: image 2 incomplete verifier 验证不成功!
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 0 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[56.9812]], device='cuda:0') None
+56.98122024536133
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 1 ######
+groundtruth label, skip!
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 2 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[32.4416]], device='cuda:0') None
+32.44160842895508
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 3 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[53.4540]], device='cuda:0') None
+53.453975677490234
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 4 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[38.0262]], device='cuda:0') None
+38.026153564453125
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 5 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[51.5381]], device='cuda:0') None
+51.538055419921875
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 6 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[45.7558]], device='cuda:0') None
+45.755802154541016
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 7 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[37.1857]], device='cuda:0') None
+37.185672760009766
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 8 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[39.3319]], device='cuda:0') None
+39.331912994384766
+##### [new_idx<2>: imag_idx <2>, imag_label<1>] Tested against target label 9 ######
+alpha-CROWN optimizable variables initialized.
+initial CROWN bounds: tensor([[52.2720]], device='cuda:0') None
+52.27195739746094
+Result: image 2 verification success (with branch and bound)!
+Wall time: 0.8088357448577881
+
+Branching method: fsb
+epsilon:: 0.01
+NN model:: models/eran/mnist_6_100_nat.pth
+number of correctly classified examples: 3
+incorrectly classified idx (total 0): []
+Falsified idx (total 0): []
+Verfied idx (total 3): [0, 1, 2]
+Failed-verified idx (total 0): []
+verifier is called on 3 examples.
+final verified acc: 100.0%[3/3]
+final falsified rate: 0.0%[0/3]
+final failed rate: 0.0%[0/3]
+Verification time 1.7932040691375732 on 3 examples. Average time: 0.5977346897125244
+Total time : 4.283537149429321, Average time(excluding incorrect classified):1.4278457164764404

@@ -12,6 +12,7 @@
 ##                                                                     ##
 #########################################################################
 from collections import OrderedDict
+from inspect import isclass
 
 import os
 import gzip
@@ -472,30 +473,34 @@ def load_generic_dataset(eps_temp=None):
     return X, labels, data_max, data_min, eps_temp, runnerup
 
 
-def load_eran_dataset(eps_temp=None):
-    """
-    Load sampled data and define the robustness region
-
-     return: X, labels, data_max, data_min, eps_temp, runnerup
+def load_eran_dataset(eps_temp = None):
+    """   Load sampled data and define the robustness region
     返回数据集，类型，最大值，最小值，eps_temp, runnerup
-    
 
-    """
-    
+     
+    Returns:
+       X(Tensor): Images data in a [1000,1,28,28] float tensor
+       labels   : True labels of images, tensor with shape [1000]
+       data_max(tensort): torch.Size([1, 1, 1, 1])
+       data_min(tensor): torch.Size([1, 1, 1, 1])
+       eps_temp(tensor): normalized epsilon with torch.Size([1, 1, 1, 1])
+       runnerup(tensor):  torch.Size([1000])
+     """    
     database_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'datasets/eran')
 
     if arguments.Config["data"]["dataset"] == "CIFAR_ERAN":
         X = np.load(os.path.join(database_path, "cifar_eran/X_eran.npy"))
         mean = np.array([0.4914, 0.4822, 0.4465]).reshape(1, -1, 1, 1).astype(np.float32)
         std = np.array([0.2023, 0.1994, 0.201]).reshape(1, -1, 1, 1).astype(np.float32)
-        X = (X - mean) / std
+        X = (X - mean) / std #normalization of X
 
         labels = np.load(os.path.join(database_path, "cifar_eran/y_eran.npy"))
         runnerup = np.copy(labels)
         X = torch.from_numpy(X.astype(np.float32))
         labels = torch.from_numpy(labels.astype(int))
         runnerup = torch.from_numpy(runnerup.astype(int))
-        if eps_temp is None: eps_temp = 2. / 255.
+        if eps_temp is None: 
+            eps_temp = 2. / 255.
 
         eps_temp = torch.tensor(eps_temp / std).reshape(1, -1, 1, 1)
         data_max = torch.tensor((1. - mean) / std).reshape(1, -1, 1, 1)
@@ -514,16 +519,21 @@ def load_eran_dataset(eps_temp=None):
         X = np.load(os.path.join(database_path, "mnist_eran/X_eran.npy"))
         mean = 0.1307
         std = 0.3081
-        X = (X - mean) / std
+        X = (X - mean) / std #normalize the raw data
 
         labels = np.load(os.path.join(database_path, "mnist_eran/y_eran.npy"))
         runnerup = np.copy(labels)
         X = torch.from_numpy(X.astype(np.float32))
         labels = torch.from_numpy(labels.astype(int))
         runnerup = torch.from_numpy(runnerup.astype(int))
-        if eps_temp is None: eps_temp = 0.3
-
-        eps_temp = torch.tensor(eps_temp / std).reshape(1, -1, 1, 1)
+        if eps_temp is None: 
+            eps_temp = 0.3
+        ##UserWarning: To copy construct from a tensor, 
+        #it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+        if eps_temp.__class__ is torch.Tensor:
+            eps_temp = (eps_temp.clone().detach()/ std).reshape(1, -1, 1, 1)
+        else:
+            eps_temp = torch.tensor(eps_temp / std).reshape(1, -1, 1, 1)
         data_max = torch.tensor((1. - mean) / std).reshape(1, -1, 1, 1)
         data_min = torch.tensor((0. - mean) / std).reshape(1, -1, 1, 1)
 
